@@ -197,7 +197,7 @@ local function LoadWindow()
 		for i, addon in pairs(stAddonManager.AllAddons) do
 			local button = CreateFrame("Frame", nil, scrollFrame.Anchor)
 			button:SetFrameLevel(scrollFrame.Anchor:GetFrameLevel() + 1)
-			button:Size(16, 16)
+			button:SetSize(16, 16)
 			SkinFrame(button)
 			if addon.enabled then
 				button:SetBackdropColor(0/255, 170/255, 255/255)
