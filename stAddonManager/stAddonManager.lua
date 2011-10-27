@@ -95,14 +95,7 @@ local function SkinScrollBar(frame, thumbTrim)
 		StripTextures(dScroll)
 		dScroll:EnableMouse(false)
 		uScroll:EnableMouse(false)
-		
-		if not frame.trackbg then
-			frame.trackbg = CreateFrame("Frame", nil, frame)
-			frame.trackbg:SetPoint("TOPLEFT", uScroll, "TOPLEFT", 0, 0)
-			frame.trackbg:SetPoint("BOTTOMRIGHT", dScroll, "BOTTOMRIGHT", 0, 0)
-			SkinFrame(frame.trackbg)
-		end
-		
+
 		if frame:GetThumbTexture() then
 			frame:GetThumbTexture():SetTexture(nil)
 			if not frame.thumbbg then
@@ -171,18 +164,23 @@ local function LoadWindow()
 		close:SetScript("OnClick", function() window:Hide() end)
 		header.close = close
 		
+		addonListBG = CreateFrame("Frame", window:GetName().."_ScrollBackground", window)
+		addonListBG:SetPoint("TOPLEFT", header, "TOPLEFT", 10, -50)
+		addonListBG:SetWidth(window:GetWidth()-20)
+		addonListBG:SetHeight(window:GetHeight()-60)
+		SkinFrame(addonListBG)
+		
 		--Create scroll frame (God damn these things are a pain)
 		local scrollFrame = CreateFrame("ScrollFrame", window:GetName().."_ScrollFrame", window, "UIPanelScrollFrameTemplate")
-		scrollFrame:SetPoint("TOPLEFT", header, "TOPLEFT", 10, -50)
-		scrollFrame:SetWidth(window:GetWidth()-43)
-		SkinFrame(scrollFrame)
-		scrollFrame:SetHeight(window:GetHeight()-60)
+		scrollFrame:SetPoint("TOPLEFT", addonListBG, "TOPLEFT", 0, -2)
+		scrollFrame:SetWidth(addonListBG:GetWidth()-25)
+		scrollFrame:SetHeight(addonListBG:GetHeight()-5)
 		SkinScrollBar(_G[window:GetName().."_ScrollFrameScrollBar"])
 		scrollFrame:SetFrameLevel(window:GetFrameLevel()+1)
 		
 		scrollFrame.Anchor = CreateFrame("Frame", window:GetName().."_ScrollAnchor", scrollFrame)
 		scrollFrame.Anchor:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, -3)
-		scrollFrame.Anchor:SetWidth(scrollFrame:GetWidth())
+		scrollFrame.Anchor:SetWidth(window:GetWidth()-40)
 		scrollFrame.Anchor:SetHeight(scrollFrame:GetHeight())
 		scrollFrame.Anchor:SetFrameLevel(scrollFrame:GetFrameLevel()+1)
 		scrollFrame:SetScrollChild(scrollFrame.Anchor)
