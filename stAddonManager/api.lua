@@ -1,85 +1,100 @@
-local st = ...
+local _, st = ...
 ---------------------------------------------------------
 -- Pulling in some Tukui functions for easier skinning --
 ---------------------------------------------------------
+st.font = { [[Interface\AddOns\stAddonManager\media\visitor.TTF]], 12, "MONOCHROMEOUTLINE" }
+st.barTex = [[Interface\AddOns\stAddonManager\media\normTex.tga]]
+st.blankTex = [[Interface\AddOns\stAddonManager\media\blankTex.tga]]
+st.glowTex = [[Interface\AddOns\stAddonManager\media\glowTex.tga]]
+st.bordercolor = {0.2, 0.2, 0.2}
+st.backdropcolor = {0.05, 0.05, 0.05}
+
+if Tukui then
+	local C = Tukui[2]
+	st.font = { C.media.pixelfont, 12, "MONOCHROMEOUTLINE" }
+	st.barTex = C.media.normTex
+	st.backdropcolor = C.general.backdropcolor
+	st.bordercolor = C.general.bordercolor
+end
+
 local function SetPixelFont(text)
-	text:SetFont(unpack(font))
+	text:SetFont(unpack(st.font))
 	text:SetShadowOffset(0,0)
 end
 
-local function SetTemplate(self, template, texture)
+local function SetTemplate(f, t, tex)
+	local texture = tex and st.barTex or st.blankTex
 
-	local balpha = 1
-	if t == "Transparent" then balpha = 0.8 end
-	f:SetBackdropColor(.05,.05,.05, balpha)
-	f:SetBackdropBorderColor(.2,.2,.2)
-
-	self:SetBackdrop({
-		bgFile = texture and barTex or blankTex, 
-		edgeFile =  blankTex, 
-		tile = false, tileSize = 0, edgeSize = 1, 
-		insets = { left = 1, right = 1, top = 1, bottom = 1},
+	f:SetBackdrop({
+	  bgFile = texture, 
+	  edgeFile = st.blankTex, 
+	  tile = false, tileSize = 0, edgeSize = 1,
 	})
 
 	if not noinset and not f.isInsetDone then
 		f.insettop = f:CreateTexture(nil, "BORDER")
-		f.insettop:Point("TOPLEFT", f, "TOPLEFT", -1, 1)
-		f.insettop:Point("TOPRIGHT", f, "TOPRIGHT", 1, -1)
-		f.insettop:Height(1)
+		f.insettop:SetPoint("TOPLEFT", f, "TOPLEFT", -1, 1)
+		f.insettop:SetPoint("TOPRIGHT", f, "TOPRIGHT", 1, -1)
+		f.insettop:SetHeight(1)
 		f.insettop:SetTexture(0,0,0)	
 		f.insettop:SetDrawLayer("BORDER", -7)
 		
 		f.insetbottom = f:CreateTexture(nil, "BORDER")
-		f.insetbottom:Point("BOTTOMLEFT", f, "BOTTOMLEFT", -1, -1)
-		f.insetbottom:Point("BOTTOMRIGHT", f, "BOTTOMRIGHT", 1, -1)
-		f.insetbottom:Height(1)
+		f.insetbottom:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", -1, -1)
+		f.insetbottom:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 1, -1)
+		f.insetbottom:SetHeight(1)
 		f.insetbottom:SetTexture(0,0,0)	
 		f.insetbottom:SetDrawLayer("BORDER", -7)
 		
 		f.insetleft = f:CreateTexture(nil, "BORDER")
-		f.insetleft:Point("TOPLEFT", f, "TOPLEFT", -1, 1)
-		f.insetleft:Point("BOTTOMLEFT", f, "BOTTOMLEFT", 1, -1)
-		f.insetleft:Width(1)
+		f.insetleft:SetPoint("TOPLEFT", f, "TOPLEFT", -1, 1)
+		f.insetleft:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, -1)
+		f.insetleft:SetWidth(1)
 		f.insetleft:SetTexture(0,0,0)
 		f.insetleft:SetDrawLayer("BORDER", -7)
 		
 		f.insetright = f:CreateTexture(nil, "BORDER")
-		f.insetright:Point("TOPRIGHT", f, "TOPRIGHT", 1, 1)
-		f.insetright:Point("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, -1)
-		f.insetright:Width(1)
+		f.insetright:SetPoint("TOPRIGHT", f, "TOPRIGHT", 1, 1)
+		f.insetright:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, -1)
+		f.insetright:SetWidth(1)
 		f.insetright:SetTexture(0,0,0)	
 		f.insetright:SetDrawLayer("BORDER", -7)
 
 		f.insetinsidetop = f:CreateTexture(nil, "BORDER")
-		f.insetinsidetop:Point("TOPLEFT", f, "TOPLEFT", 1, -1)
-		f.insetinsidetop:Point("TOPRIGHT", f, "TOPRIGHT", -1, 1)
-		f.insetinsidetop:Height(1)
+		f.insetinsidetop:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
+		f.insetinsidetop:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, 1)
+		f.insetinsidetop:SetHeight(1)
 		f.insetinsidetop:SetTexture(0,0,0)	
 		f.insetinsidetop:SetDrawLayer("BORDER", -7)
 		
 		f.insetinsidebottom = f:CreateTexture(nil, "BORDER")
-		f.insetinsidebottom:Point("BOTTOMLEFT", f, "BOTTOMLEFT", 1, 1)
-		f.insetinsidebottom:Point("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 1)
-		f.insetinsidebottom:Height(1)
+		f.insetinsidebottom:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, 1)
+		f.insetinsidebottom:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 1)
+		f.insetinsidebottom:SetHeight(1)
 		f.insetinsidebottom:SetTexture(0,0,0)	
 		f.insetinsidebottom:SetDrawLayer("BORDER", -7)
 		
 		f.insetinsideleft = f:CreateTexture(nil, "BORDER")
-		f.insetinsideleft:Point("TOPLEFT", f, "TOPLEFT", 1, -1)
-		f.insetinsideleft:Point("BOTTOMLEFT", f, "BOTTOMLEFT", -1, 1)
-		f.insetinsideleft:Width(1)
+		f.insetinsideleft:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
+		f.insetinsideleft:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", -1, 1)
+		f.insetinsideleft:SetWidth(1)
 		f.insetinsideleft:SetTexture(0,0,0)
 		f.insetinsideleft:SetDrawLayer("BORDER", -7)
 		
 		f.insetinsideright = f:CreateTexture(nil, "BORDER")
-		f.insetinsideright:Point("TOPRIGHT", f, "TOPRIGHT", -1, -1)
-		f.insetinsideright:Point("BOTTOMRIGHT", f, "BOTTOMRIGHT", 1, 1)
-		f.insetinsideright:Width(1)
+		f.insetinsideright:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+		f.insetinsideright:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 1, 1)
+		f.insetinsideright:SetWidth(1)
 		f.insetinsideright:SetTexture(0,0,0)	
 		f.insetinsideright:SetDrawLayer("BORDER", -7)
 
 		f.isInsetDone = true
 	end
+	local r, g, b = unpack(st.backdropcolor)
+	local a = t == "Transparent" and 0.8 or 1
+	f:SetBackdropColor(r, g, b, a)
+	r, g, b = unpack(st.bordercolor)
+	f:SetBackdropBorderColor(r, g, b)
 end
 
 local function SetInside(obj, anchor, xOffset, yOffset)
@@ -89,8 +104,8 @@ local function SetInside(obj, anchor, xOffset, yOffset)
 
 	if obj:GetPoint() then obj:ClearAllPoints() end
 	
-	obj:Point("TOPLEFT", anchor, "TOPLEFT", xOffset, -yOffset)
-	obj:Point("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -xOffset, yOffset)
+	obj:SetPoint("TOPLEFT", anchor, "TOPLEFT", xOffset, -yOffset)
+	obj:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", -xOffset, yOffset)
 end
 
 local function CreateBackdrop(f, t, tex)
@@ -98,8 +113,8 @@ local function CreateBackdrop(f, t, tex)
 	if not t then t = "Default" end
 
 	local b = CreateFrame("Frame", nil, f)
-	b:Point("TOPLEFT", -2 + inset, 2 - inset)
-	b:Point("BOTTOMRIGHT", 2 - inset, -2 + inset)
+	b:SetPoint("TOPLEFT", -2 + inset, 2 - inset)
+	b:SetPoint("BOTTOMRIGHT", 2 - inset, -2 + inset)
 	b:SetTemplate(t, tex)
 
 	if f:GetFrameLevel() - 1 >= 0 then
@@ -117,10 +132,10 @@ local function CreateShadow(f, t)
 	local shadow = CreateFrame("Frame", nil, f)
 	shadow:SetFrameLevel(1)
 	shadow:SetFrameStrata(f:GetFrameStrata())
-	shadow:Point("TOPLEFT", -3, 3)
-	shadow:Point("BOTTOMLEFT", -3, -3)
-	shadow:Point("TOPRIGHT", 3, 3)
-	shadow:Point("BOTTOMRIGHT", 3, -3)
+	shadow:SetPoint("TOPLEFT", -3, 3)
+	shadow:SetPoint("BOTTOMLEFT", -3, -3)
+	shadow:SetPoint("TOPRIGHT", 3, 3)
+	shadow:SetPoint("BOTTOMRIGHT", 3, -3)
 	shadow:SetBackdrop( { 
 		edgeFile = C["media"].glowTex, edgeSize = 3,
 		insets = {left = 5, right = 5, top = 5, bottom = 5},
@@ -135,7 +150,6 @@ local function SetModifiedColor(self)
 	if self.SetTextColor then
 		self:SetTextColor(color.r, color.g, color.b)
 	else
-		self:SetBackdropColor(color.r*.15, color.g*.15, color.b*.15)
 		self:SetBackdropBorderColor(color.r, color.g, color.b)
 	end
 end
@@ -144,7 +158,7 @@ local function SetOriginalColor(self)
 	if self.SetTextColor then
 		self:SetTextColor(1,1,1)
 	else
-		self:SetTemplate()
+		self:SetBackdropBorderColor(unpack(st.bordercolor))
 	end
 end
 

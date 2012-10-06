@@ -1,35 +1,33 @@
-local st = ...
-------------------------------------------------------
--- MEDIA & CONFIG ------------------------------------
-------------------------------------------------------
-local font = { Tukui[2].media.pixelfont or [[Interface\AddOns\stAddonManager\media\SEMPRG__.TTF]], 8, "MONOCHROMEOUTLINE" }
-local barTex = Tukui[2].media.normTex or [[Interface\AddOns\stAddonManager\media\normTex.tga]]
-local blankTex = [[Interface\AddOns\stAddonManager\media\blankTex.tga]]
-local glowTex = [[Interface\AddOns\stAddonManager\media\glowTex.tga]]
+local _, st = ...
 
-local bordercolor = Tukui[2].general.bordercolor or {0, 0, 0, 1}
-local backdropcolor = Tukui[2].general.backdropcolor or {0.05, 0.05, 0.05, 0.9}
-local backdrop = {
-	bgFile = blankTex, 
-	edgeFile =  blankTex, 
-	tile = false, tileSize = 0, edgeSize = 1, 
-	insets = { left = 1, right = 1, top = 1, bottom = 1},
-}
-
-
-------------------------------------------------------
--- INITIAL FRAME CREATION ----------------------------
-------------------------------------------------------
 local stam = CreateFrame("Frame", "stAddonManager", UIParent)
 
 stam.pageNum = 0
-stam.perPage = 14
-stam.pages = {}
+stam.perPage = 10
+stam.buttons = {}
+
+function stam.Initialize()
+	local menu = _G.GameMenuFrame
+	local macros = _G.GameMenuButtonMacros
+	local ratings = _G.GameMenuButtonRatings
+	local logout = _G.GameMenuButtonLogout
+
+	local addons = CreateFrame("Button", "GameMenuButtonAddons", menu, "GameMenuButtonTemplate")
+
+	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -3)
+	addons:SetSize(logout:GetWidth(), logout:GetHeight())
+	addons:SetText("AddOns")
+
+	logout:ClearAllPoints()
+	logout:SetPoint("TOP", addons, "BOTTOM", 0, -3)
+
+	addons:SetScript("OnClick", stam.LoadWindow)
+end
 
 function stam.UpdateAddonList()
 	for i = 1, stam.perPage do
 		local addonIndex = (stam.pageNum*stam.perPage) + i
-		local page = stam.pages[i]
+		local page = stam.buttons[i]
 
 		if stam.pageNum <= 0 then
 			stam.prevPage:Hide()
@@ -49,14 +47,11 @@ function stam.UpdateAddonList()
 			page:Show()
 
 			if enabled then
-				page.enabled:SetVertexColor(0, 1, 0, 0.05)
-				-- page.enabled:SetGradientAlpha("VERTICAL", 0/255, 255/255, 0/255, .2, 0, 0, 0, 0)
+				page.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
 			elseif loadable then
-				page.enabled:SetVertexColor(1, 0.8, 0, 0.15)
-				-- page.enabled:SetGradientAlpha("VERTICAL", 255/255, 180/255, 0/255, .15, 0, 0, 0, 0)
+				page.enabled:SetVertexColor(1, 0.8, 0, 0.5)
 			else
-				page.enabled:SetVertexColor(1, 0, 0, 0.05)
-				-- page.enabled:SetGradientAlpha("VERTICAL", 255/255, 0/255, 0/255, .2, 0, 0, 0, 0)
+				page.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
 			end
 			page:SetScript("OnMouseDown", function(self)
 				if enabled then
@@ -73,10 +68,11 @@ function stam.UpdateAddonList()
 end
 
 function stam.LoadWindow()
+	if GameMenuFrame:IsShown() then GameMenuFrame:Hide() end
 	if stam.loaded then ToggleFrame(stam) return end
 
 	local titleBar = CreateFrame("Frame", nil, stam)
-	stam:SetSize(200, 400)
+	stam:SetSize(225, 10 + stam.perPage * 25 + 40)
 	titleBar:SetSize(stam:GetWidth(), 20)
 
 	titleBar:SetPoint("CENTER", UIParent, "CENTER", 0, stam:GetHeight()/2)
@@ -111,7 +107,7 @@ function stam.LoadWindow()
 	local paging = CreateFrame("Frame", nil, stam)
 	paging:SetTemplate()
 	paging:SetSize(40, 20)
-	paging:SetPoint("BOTTOM", stam, "BOTTOM", 0, 12)
+	paging:SetPoint("BOTTOM", stam, "BOTTOM", 0, 10)
 
 	local prevPage = CreateFrame("Frame", nil, paging)
 	local nextPage = CreateFrame("Frame", nil, paging)
@@ -149,24 +145,28 @@ function stam.LoadWindow()
 
 	local prev
 	for i=1, stam.perPage do
-		local page = CreateFrame("Frame", stam:GetName().."Page"..i, stam)
-		page:SetTemplate(nil, true)
-		page:SetSize(stam:GetWidth()-20, 20)
-		page:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
-		page:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
+		local button = CreateFrame("Frame", stam:GetName().."Page"..i, stam)
+		button:SetTemplate(nil, true)
+		button:SetSize(20, 20)
+		button:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
+		button:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
 		if i == 1 then
-			page:SetPoint("TOP", stam, "TOP", 0, -10)
+			button:SetPoint("TOPLEFT", stam, "TOPLEFT", 10, -10)
 		else
-			page:SetPoint("TOP", stam.pages[i-1], "BOTTOM", 0, -5)
+			button:SetPoint("TOP", stam.buttons[i-1], "BOTTOM", 0, -5)
 		end
-		page.text = page:CreateFontString(nil, 'OVERLAY')
-		page.text:SetPixelFont()
-		page.text:SetInside(page)
-		page.enabled = page:CreateTexture(nil, 'OVERLAY')
-		page.enabled:SetInside(page)
-		page.enabled:SetTexture(blankTex)
+		button.text = button:CreateFontString(nil, 'OVERLAY')
+		button.text:SetPixelFont()
+		button.text:SetPoint("LEFT", button, "RIGHT",10, 0)
+		button.text:SetPoint("TOP", button, "TOP")
+		button.text:SetPoint("BOTTOM", button, "BOTTOM")
+		button.text:SetPoint("RIGHT", stam, "RIGHT", -10, 0)
+		button.text:SetJustifyH("LEFT")
+		button.enabled = button:CreateTexture(nil, 'OVERLAY')
+		button.enabled:SetInside(button)
+		button.enabled:SetTexture(st.blankTex)
 
-		stam.pages[i] = page
+		stam.buttons[i] = button
 	end
 
 
@@ -188,8 +188,12 @@ function stam.LoadWindow()
 
 	stam.UpdateAddonList()
 
+	tinsert(UISpecialFrames, stam:GetName())
 	stam.loaded = true
 end
+
+stam:RegisterEvent("PLAYER_ENTERING_WORLD")
+stam:SetScript("OnEvent", stam.Initialize)
 
 SLASH_STADDONMANAGER1, SLASH_STADDONMANAGER2, SLASH_STADDONMANAGER3 = "/staddonmanager", "/stam", "/staddon"
 SlashCmdList["STADDONMANAGER"] = stam.LoadWindow
