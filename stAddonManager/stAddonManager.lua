@@ -7,19 +7,26 @@ stam.perPage = 10
 stam.buttons = {}
 
 function stam.Initialize()
+	stam:UnregisterEvent("PLAYER_ENTERING_WORLD")
+
+	if GameMenuButtonAddons then return end
+
 	local menu = _G.GameMenuFrame
 	local macros = _G.GameMenuButtonMacros
 	local ratings = _G.GameMenuButtonRatings
 	local logout = _G.GameMenuButtonLogout
 
 	local addons = CreateFrame("Button", "GameMenuButtonAddons", menu, "GameMenuButtonTemplate")
-
-	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -3)
+	
+	if Tukui then addons:SkinButton(true) end
+	
+	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -1)
 	addons:SetSize(logout:GetWidth(), logout:GetHeight())
 	addons:SetText("AddOns")
 
 	logout:ClearAllPoints()
-	logout:SetPoint("TOP", addons, "BOTTOM", 0, -3)
+	logout:SetPoint("TOP", addons, "BOTTOM", 0, -14)
+	menu:SetHeight(menu:GetHeight() + addons:GetHeight() + 15)
 
 	addons:SetScript("OnClick", stam.LoadWindow)
 end
@@ -68,7 +75,7 @@ function stam.UpdateAddonList()
 end
 
 function stam.LoadWindow()
-	if GameMenuFrame:IsShown() then GameMenuFrame:Hide() end
+	if GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
 	if stam.loaded then ToggleFrame(stam) return end
 
 	local titleBar = CreateFrame("Frame", nil, stam)
