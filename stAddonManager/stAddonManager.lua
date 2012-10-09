@@ -171,7 +171,7 @@ function stam.LoadWindow()
 		button.text:SetJustifyH("LEFT")
 		button.enabled = button:CreateTexture(nil, 'OVERLAY')
 		button.enabled:SetInside(button)
-		button.enabled:SetTexture(st.blankTex)
+		button.enabled:SetTexture(1, 1, 1)
 
 		stam.buttons[i] = button
 	end

@@ -1,11 +1,12 @@
-local _, st = ...
+local addon, st = ...
+
 ---------------------------------------------------------
 -- Pulling in some Tukui functions for easier skinning --
 ---------------------------------------------------------
-st.font = { [[Interface\AddOns\stAddonManager\media\visitor.TTF]], 12, "MONOCHROMEOUTLINE" }
-st.barTex = [[Interface\AddOns\stAddonManager\media\normTex.tga]]
-st.blankTex = [[Interface\AddOns\stAddonManager\media\blankTex.tga]]
-st.glowTex = [[Interface\AddOns\stAddonManager\media\glowTex.tga]]
+st.font = { format('[[Interface\AddOns\%s\media\visitor.TTF]]', addon), 12, "MONOCHROMEOUTLINE" }
+st.barTex = format('[[Interface\AddOns\%s\media\normTex.tga]]', addon)
+st.blankTex = format('[[Interface\AddOns\%s\media\blankTex.tga]]', addon)
+st.glowTex = format('[[Interface\AddOns\%s\media\glowTex.tga]]', addon)
 st.bordercolor = {0.2, 0.2, 0.2}
 st.backdropcolor = {0.05, 0.05, 0.05}
 
@@ -17,9 +18,57 @@ if Tukui then
 	st.bordercolor = C.general.bordercolor
 end
 
+local function RegisterEvents(self, events)
+	if not type(events) == 'table' then error('Events must be passed as a table') return end
+
+	for _,event in pairs(events) do
+		self:RegisterEvent(event)
+	end
+end
+
+local function Kill(object)
+	if object.UnregisterAllEvents then
+		object:UnregisterAllEvents()
+	end
+	object.Show = noop
+	object:Hide()
+end
+
+local function StripTextures(object, kill)
+	for i=1, object:GetNumRegions() do
+		local region = select(i, object:GetRegions())
+		if region:GetObjectType() == "Texture" then
+			if kill then
+				region:Kill()
+			else
+				region:SetTexture(nil)
+			end
+		end
+	end		
+end
+
+
 local function SetPixelFont(text)
 	text:SetFont(unpack(st.font))
 	text:SetShadowOffset(0,0)
+end
+
+local function CreateBackdrop(f, t, tex)
+	if f.backdrop then return end
+	if not t then t = "Default" end
+
+	local b = CreateFrame("Frame", nil, f)
+	b:Point("TOPLEFT", -2 + inset, 2 - inset)
+	b:Point("BOTTOMRIGHT", 2 - inset, -2 + inset)
+	b:SetTemplate(t, tex)
+
+	if f:GetFrameLevel() - 1 >= 0 then
+		b:SetFrameLevel(f:GetFrameLevel() - 1)
+	else
+		b:SetFrameLevel(0)
+	end
+	
+	f.backdrop = b
 end
 
 local function SetTemplate(f, t, tex)
@@ -163,8 +212,30 @@ local function SetOriginalColor(self)
 end
 
 
+local function Kill(object)
+	if object.UnregisterAllEvents then
+		object:UnregisterAllEvents()
+	end
+	object.Show = noop
+	object:Hide()
+end
+
+local function StripTextures(object, kill)
+	for i=1, object:GetNumRegions() do
+		local region = select(i, object:GetRegions())
+		if region:GetObjectType() == "Texture" then
+			if kill then
+				region:Kill()
+			else
+				region:SetTexture(nil)
+			end
+		end
+	end		
+end
+
 local function addapi(object)
 	local mt = getmetatable(object).__index
+	if not object.RegisterEvents then mt.RegisterEvents = RegisterEvents end
 	if not object.SetPixelFont then mt.SetPixelFont = SetPixelFont end
 	if not object.SetTemplate then mt.SetTemplate = SetTemplate end
 	if not object.SetInside then mt.SetInside = SetInside end
@@ -172,6 +243,9 @@ local function addapi(object)
 	if not object.CreateShadow then mt.CreateShadow = CreateShadow end
 	if not object.SetModifiedColor then mt.SetModifiedColor = SetModifiedColor end
 	if not object.SetOriginalColor then mt.SetOriginalColor = SetOriginalColor end
+	if not object.Kill then mt.Kill = Kill end
+	if not object.StripTextures then mt.StripTextures = StripTextures end
+
 end
 
 local handled = {["Frame"] = true}
