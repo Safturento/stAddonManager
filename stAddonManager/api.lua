@@ -1,21 +1,21 @@
-local addon, st = ...
+local addon, API = ...
 
 ---------------------------------------------------------
 -- Pulling in some Tukui functions for easier skinning --
 ---------------------------------------------------------
-st.font = { format('[[Interface\AddOns\%s\media\visitor.TTF]]', addon), 12, "MONOCHROMEOUTLINE" }
-st.barTex = format('[[Interface\AddOns\%s\media\normTex.tga]]', addon)
-st.blankTex = format('[[Interface\AddOns\%s\media\blankTex.tga]]', addon)
-st.glowTex = format('[[Interface\AddOns\%s\media\glowTex.tga]]', addon)
-st.bordercolor = {0.2, 0.2, 0.2}
-st.backdropcolor = {0.05, 0.05, 0.05}
+API.font = { format("Interface\\AddOns\\%s\\media\\visitor.ttf", addon), 12, "MONOCHROMEOUTLINE" }
+API.barTex = format("Interface\\AddOns\\%s\\media\\normTex.tga", addon)
+API.blankTex = format("Interface\\AddOns\\%s\\media\\blankTex.tga", addon)
+API.glowTex = format("Interface\\AddOns\\%s\\media\\glowTex.tga", addon)
+API.bordercolor = {0.2, 0.2, 0.2}
+API.backdropcolor = {0.05, 0.05, 0.05}
 
 if Tukui then
 	local C = Tukui[2]
-	st.font = { C.media.pixelfont, 12, "MONOCHROMEOUTLINE" }
-	st.barTex = C.media.normTex
-	st.backdropcolor = C.general.backdropcolor
-	st.bordercolor = C.general.bordercolor
+	API.font = { C.media.pixelfont, 12, "MONOCHROMEOUTLINE" }
+	API.barTex = C.media.normTex
+	API.backdropcolor = C.general.backdropcolor
+	API.bordercolor = C.general.bordercolor
 end
 
 local function RegisterEvents(self, events)
@@ -49,7 +49,7 @@ end
 
 
 local function SetPixelFont(text)
-	text:SetFont(unpack(st.font))
+	text:SetFont(unpack(API.font))
 	text:SetShadowOffset(0,0)
 end
 
@@ -72,11 +72,11 @@ local function CreateBackdrop(f, t, tex)
 end
 
 local function SetTemplate(f, t, tex)
-	local texture = tex and st.barTex or st.blankTex
+	local texture = tex and API.barTex or API.blankTex
 
 	f:SetBackdrop({
 	  bgFile = texture, 
-	  edgeFile = st.blankTex, 
+	  edgeFile = API.blankTex, 
 	  tile = false, tileSize = 0, edgeSize = 1,
 	})
 
@@ -139,10 +139,10 @@ local function SetTemplate(f, t, tex)
 
 		f.isInsetDone = true
 	end
-	local r, g, b = unpack(st.backdropcolor)
+	local r, g, b = unpack(API.backdropcolor)
 	local a = t == "Transparent" and 0.8 or 1
 	f:SetBackdropColor(r, g, b, a)
-	r, g, b = unpack(st.bordercolor)
+	r, g, b = unpack(API.bordercolor)
 	f:SetBackdropBorderColor(r, g, b)
 end
 
@@ -207,7 +207,7 @@ local function SetOriginalColor(self)
 	if self.SetTextColor then
 		self:SetTextColor(1,1,1)
 	else
-		self:SetBackdropBorderColor(unpack(st.bordercolor))
+		self:SetBackdropBorderColor(unpack(API.bordercolor))
 	end
 end
 

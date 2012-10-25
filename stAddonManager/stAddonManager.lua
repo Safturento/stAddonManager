@@ -1,13 +1,16 @@
 local _, st = ...
 
-local stam = CreateFrame("Frame", "stAddonManager", UIParent)
+local stAM = CreateFrame("Frame", "stAddonManager", UIParent)
 
-stam.pageNum = 0
-stam.perPage = 10
-stam.buttons = {}
+stAM.pageNum = 0
+stAM.perPage = 10
 
-function stam.Initialize()
-	stam:UnregisterEvent("PLAYER_ENTERING_WORLD")
+local function strtrim(string)
+	return string:gsub("^%s*(.-)%s*$", "%1")
+end
+
+function stAM.Initialize(self, event, ...)
+	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 
 	if GameMenuButtonAddons then return end
 
@@ -25,96 +28,215 @@ function stam.Initialize()
 	addons:SetText("AddOns")
 
 	logout:ClearAllPoints()
-	logout:SetPoint("TOP", addons, "BOTTOM", 0, -14)
+	local anchorTo = SkinOptionsButton or addons
+	logout:SetPoint("TOP", anchorTo, "BOTTOM", 0, -14)
 	menu:SetHeight(menu:GetHeight() + addons:GetHeight() + 15)
 
-	addons:SetScript("OnClick", stam.LoadWindow)
+	addons:SetScript("OnClick", function() self:LoadWindow() end)
 end
 
-function stam.UpdateAddonList()
-	for i = 1, stam.perPage do
-		local addonIndex = (stam.pageNum*stam.perPage) + i
-		local page = stam.buttons[i]
+function stAM.UpdateAddonList(self)
+	for i = 1, self.perPage do
+		local addonIndex = (self.pageNum*self.perPage) + i
+		local button = self.addons.buttons[i]
 
-		if stam.pageNum <= 0 then
-			stam.prevPage:Hide()
+		if self.pageNum <= 0 then
+			self.prevPage:Hide()
 		else
-			stam.prevPage:Show()
+			self.prevPage:Show()
 		end
 
-		if (stam.pageNum+1)*stam.perPage >= GetNumAddOns() then
-			stam.nextPage:Hide()
+		if (self.pageNum+1)*self.perPage >= GetNumAddOns() then
+			self.nextPage:Hide()
 		else
-			stam.nextPage:Show()
+			self.nextPage:Show()
 		end
 
 		if addonIndex <= GetNumAddOns() then
 			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
-			page.text:SetText(title)
-			page:Show()
+			button.text:SetText(title)
+			button:Show()
 
 			if enabled then
-				page.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
-			elseif loadable then
-				page.enabled:SetVertexColor(1, 0.8, 0, 0.5)
+				button.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
 			else
-				page.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
+				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
 			end
-			page:SetScript("OnMouseDown", function(self)
+			button:SetScript("OnClick", function()
 				if enabled then
 					DisableAddOn(name)
 				else
 					EnableAddOn(name)
 				end
-				stam.UpdateAddonList()
+				self:UpdateAddonList()
 			end)
 		else
-			page:Hide()
+			button:Hide()
 		end
 	end
 end
 
-function stam.LoadWindow()
+function stAM.UpdateSearchQuery(self, search, userInput)
+	local query = strlower(strtrim(search:GetText()))
+
+	--Revert to regular addon list if:
+	-- 1) Query text was not input by a user (e.g. text was changed by search:SetText())
+	-- 2) The query text contains nothing but spaces
+	if (not userInput) or (strlen(query) == 0) then self:UpdateAddonList() return end
+
+	--store all addons that match the query in here
+	local addonList = {}
+	for i = 1, GetNumAddOns() do
+		local name, title = GetAddOnInfo(i)
+		name = strlower(name)
+		title = strlower(title)
+
+		if strfind(name, query) or strfind(title, query) then
+			tinsert(addonList, i)
+		end
+	end
+
+
+	--Load addons the same way as UpdateAddonList, but with the filtered table this time
+	for i = 1, self.perPage do
+		local pgOff = (self.pageNum*self.perPage)
+		local addonIndex = addonList[pgOff + i]
+		local button = self.addons.buttons[i]
+
+		if self.pageNum <= 0 then
+			self.prevPage:Hide()
+		else
+			self.prevPage:Show()
+		end
+
+		if (self.pageNum+1)*self.perPage >= #addonList then
+			self.nextPage:Hide()
+		else
+			self.nextPage:Show()
+		end
+
+		if addonIndex and addonIndex <= GetNumAddOns() then
+			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
+			button.text:SetText(title)
+			button:Show()
+
+			if enabled then
+				button.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
+			else
+				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
+			end
+			button:SetScript("OnClick", function()
+				if enabled then
+					DisableAddOn(name)
+				else
+					EnableAddOn(name)
+				end
+				self:UpdateAddonList()
+			end)
+		else
+			button:Hide()
+		end
+	end
+end
+
+function stAM.LoadWindow(self)
 	if GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
-	if stam.loaded then ToggleFrame(stam) return end
+	if self.loaded then ToggleFrame(self) return end
 
-	local titleBar = CreateFrame("Frame", nil, stam)
-	stam:SetSize(225, 10 + stam.perPage * 25 + 40)
-	titleBar:SetSize(stam:GetWidth(), 20)
+	self:SetSize(225, 10 + self.perPage * 25 + 40)
+	self:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+	self:SetTemplate("Transparent")
+	self:SetClampedToScreen(true)
+	self:SetMovable(true)
+	self:EnableMouse(true)
+	self:SetScript("OnMouseDown", function(self) self:StartMoving() end)
+	self:SetScript("OnMouseUp", function(self) self:StopMovingOrSizing() end)
 
-	titleBar:SetPoint("CENTER", UIParent, "CENTER", 0, stam:GetHeight()/2)
-	stam:SetPoint("TOP", titleBar, "BOTTOM", 0, -3)
-
-	stam:SetTemplate("Transparent")
-	titleBar:SetTemplate()
-
-	titleBar.text = titleBar:CreateFontString(nil, "OVERLAY")
-	titleBar.text:SetPoint("CENTER")
-	titleBar.text:SetPixelFont()
-	titleBar.text:SetText("stAddonManager")
-
-	titleBar:SetMovable(true)
-	titleBar:EnableMouse(true)
-	titleBar:SetScript("OnMouseDown", function(self) self:StartMoving() end)
-	titleBar:SetScript("OnMouseUp", function(self) self:StopMovingOrSizing() end)
-
-	local close = CreateFrame("Button", nil, titleBar)
+	local title = CreateFrame("Frame", nil, self)
+	title:SetPoint('TOPLEFT')
+	title:SetPoint('TOPRIGHT')
+	title:SetHeight(20)
+	title.text = title:CreateFontString(nil, "OVERLAY")
+	title.text:SetPoint("CENTER")
+	title.text:SetPixelFont()
+	title.text:SetText("stAddonManager")
+	self.title = title
+	
+	local close = CreateFrame("Button", nil, title)
 	close:SetPoint("RIGHT", -3, 0)
 	close:SetSize(18,18)
-	local text = close:CreateFontString(nil, "OVERLAY")
-	text:SetPixelFont()
-	text:SetText('x')
-	text:SetPoint("CENTER", 0, 0)
-	close.text = text
-	close:SetScript("OnMouseDown", function() stam:Hide() end)
-	close:SetScript("OnEnter", function() text:SetModifiedColor() end)
-	close:SetScript("OnLeave", function() text:SetOriginalColor() end)
-	titleBar.close = close
+	close.text = close:CreateFontString(nil, "OVERLAY")
+	close.text:SetPixelFont()
+	close.text:SetText('x')
+	close.text:SetPoint("CENTER", 0, 0)
+	close:SetScript("OnMouseDown", function() self:Hide() end)
+	close:SetScript("OnEnter", function(self) self.text:SetModifiedColor() end)
+	close:SetScript("OnLeave", function(self) self.text:SetOriginalColor() end)
+	title.close = close
 
-	local paging = CreateFrame("Frame", nil, stam)
+	local search = CreateFrame("EditBox", nil, self)
+	search:SetPoint('TOPLEFT', title, 'BOTTOMLEFT', 10, -5)
+	search:SetPoint('TOPRIGHT', title, 'BOTTOMRIGHT', -10, -5)
+	search:SetHeight(20)
+	search:SetPixelFont()
+	search:SetTemplate()
+	search:SetAutoFocus(false)
+	search:SetTextInsets(3, 0, 0, 0)
+	search:SetText("Search")
+	search:SetScript("OnEnterPressed", function(self)
+		if strlen(strtrim(self:GetText())) == 0 then
+			stAM:UpdateAddonList()
+			self:SetText("Search")
+		end
+		self:ClearFocus()
+	end)
+	search:SetScript('OnEscapePressed', function(self)
+		stAM:UpdateAddonList()
+		self:SetText("Search")
+		self:ClearFocus()
+	end)
+	search:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+	search:SetScript("OnTextChanged", function(self, userInput) stAM:UpdateSearchQuery(self, userInput) end)
+
+	local addons = CreateFrame("Frame", nil, self)
+	addons:SetHeight(self.perPage*23 + 15)
+	addons:SetPoint('TOPLEFT', search, 'BOTTOMLEFT', 0, -5)
+	addons:SetPoint('TOPRIGHT', search, 'BOTTOMRIGHT', 0, -5)
+	addons:SetTemplate()
+	addons.buttons = {}
+	self.addons = addons
+
+	local profiles = CreateFrame('Button', nil, self)
+	profiles:SetSize(70, 20)
+	profiles:SetTemplate()
+	profiles.text = profiles:CreateFontString(nil, 'OVERLAY')
+	profiles.text:SetPixelFont()
+	profiles.text:SetPoint('CENTER')
+	profiles.text:SetText('Profiles')
+	profiles:SetPoint('TOPRIGHT', addons, 'BOTTOMRIGHT', 0, -10)
+	profiles:Hide()
+	self.profiles = profiles
+
+	local reload = CreateFrame("Button", nil, self)
+	reload:SetTemplate()
+	reload:SetSize(70, 20)
+	reload:SetPoint("TOPLEFT", addons, "BOTTOMLEFT", 0, -10)
+	reload.text = reload:CreateFontString(nil, 'OVERLAY')
+	reload.text:SetPixelFont()
+	reload.text:SetText("Reload")
+	reload.text:SetPoint("CENTER", 1, 0)
+	reload:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
+	reload:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
+	reload:SetScript("OnClick", function() 
+		if InCombatLockdown() then return end
+		ReloadUI()
+	end)
+	self.reload = reload
+
+	local paging = CreateFrame("Frame", nil, self)
 	paging:SetTemplate()
 	paging:SetSize(40, 20)
-	paging:SetPoint("BOTTOM", stam, "BOTTOM", 0, 10)
+	paging:SetPoint('TOP', addons, 'BOTTOM', 0, -10)
 
 	local prevPage = CreateFrame("Frame", nil, paging)
 	local nextPage = CreateFrame("Frame", nil, paging)
@@ -130,16 +252,16 @@ function stam.LoadWindow()
 
 		if i == 1 then
 			b:SetScript("OnMouseDown", function() 
-				stam.pageNum = stam.pageNum - 1
-				stam.UpdateAddonList()
+				self.pageNum = self.pageNum - 1
+				self:UpdateAddonList()
 			end)
 			b.text:SetText('<')
 			b:SetPoint("LEFT", paging, "LEFT", 0, 0)
 			b.text:SetPoint("LEFT", b, "LEFT", 8, 1)
 		else
 			b:SetScript("OnMouseDown", function() 
-				stam.pageNum = stam.pageNum + 1
-				stam.UpdateAddonList()
+				self.pageNum = self.pageNum + 1
+				self:UpdateAddonList()
 			end)
 			b.text:SetText('>')
 			b:SetPoint("RIGHT", paging, "RIGHT", 0, 0)
@@ -147,60 +269,44 @@ function stam.LoadWindow()
 		end
 	end
 	
-	stam.prevPage = prevPage
-	stam.nextPage = nextPage
+	self.prevPage = prevPage
+	self.nextPage = nextPage
 
-	local prev
-	for i=1, stam.perPage do
-		local button = CreateFrame("Frame", stam:GetName().."Page"..i, stam)
-		button:SetTemplate(nil, true)
-		button:SetSize(20, 20)
+	for i=1, self.perPage do
+		local button = CreateFrame("Button", self:GetName().."Page"..i, addons)
+		button:SetTemplate()
+		button:SetSize(22, 18)
 		button:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
 		button:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
 		if i == 1 then
-			button:SetPoint("TOPLEFT", stam, "TOPLEFT", 10, -10)
+			button:SetPoint("TOPLEFT", addons, "TOPLEFT", 10, -10)
 		else
-			button:SetPoint("TOP", stam.buttons[i-1], "BOTTOM", 0, -5)
+			button:SetPoint("TOP", addons.buttons[i-1], "BOTTOM", 0, -5)
 		end
 		button.text = button:CreateFontString(nil, 'OVERLAY')
 		button.text:SetPixelFont()
-		button.text:SetPoint("LEFT", button, "RIGHT",10, 0)
+		button.text:SetPoint("LEFT", button, "RIGHT", 10, 0)
 		button.text:SetPoint("TOP", button, "TOP")
 		button.text:SetPoint("BOTTOM", button, "BOTTOM")
-		button.text:SetPoint("RIGHT", stam, "RIGHT", -10, 0)
+		button.text:SetPoint("RIGHT", addons, "RIGHT", -10, 0)
 		button.text:SetJustifyH("LEFT")
 		button.enabled = button:CreateTexture(nil, 'OVERLAY')
 		button.enabled:SetInside(button)
 		button.enabled:SetTexture(1, 1, 1)
 
-		stam.buttons[i] = button
+		addons.buttons[i] = button
 	end
 
+	self:UpdateAddonList()
 
-	reload = CreateFrame("Button", nil, stam)
-	reload:SetTemplate()
-	reload:SetSize(30, 20)
-	reload:SetPoint("BOTTOMLEFT", stam, "BOTTOMLEFT", 10, 10)
-	reload.text = reload:CreateFontString(nil, 'OVERLAY')
-	reload.text:SetPixelFont()
-	reload.text:SetText("RL")
-	reload.text:SetPoint("CENTER", 1, 0)
-	reload:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
-	reload:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
-	reload:SetScript("OnClick", function() 
-		if InCombatLockdown() then return end
-		ReloadUI()
-	end)
-	stam.reload = reload
+	self:SetHeight(title:GetHeight() + 5 + search:GetHeight() + 5  + addons:GetHeight() + 10 + profiles:GetHeight() + 10)
 
-	stam.UpdateAddonList()
-
-	tinsert(UISpecialFrames, stam:GetName())
-	stam.loaded = true
+	tinsert(UISpecialFrames, self:GetName())
+	self.loaded = true
 end
 
-stam:RegisterEvent("PLAYER_ENTERING_WORLD")
-stam:SetScript("OnEvent", stam.Initialize)
+stAM:RegisterEvent("PLAYER_ENTERING_WORLD")
+stAM:SetScript("OnEvent", function(self, event, ...) self:Initialize(event, ...) end)
 
-SLASH_STADDONMANAGER1, SLASH_STADDONMANAGER2, SLASH_STADDONMANAGER3 = "/staddonmanager", "/stam", "/staddon"
-SlashCmdList["STADDONMANAGER"] = stam.LoadWindow
+SLASH_STADDONMANAGER1, SLASH_STADDONMANAGER2, SLASH_STADDONMANAGER3 = "/staddonmanager", "/stAM", "/staddon"
+SlashCmdList["STADDONMANAGER"] = function() stAM:LoadWindow() end
