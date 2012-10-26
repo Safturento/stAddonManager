@@ -1,9 +1,10 @@
 ## Interface: 50001
 ## Author: Safturento
-## Version: 1.0.1
+## Version: 1.1.0
 ## Title: |cff00aaffst|rAddonManager
 ## Notes: A simple and minimalistic addon to disable/enabled addons without logging out.
-## SavedVars: stAM_Profiles
+## SavedVariables: stAM_Profiles
 
 api.lua
 stAddonManager.lua
+profiles.lua

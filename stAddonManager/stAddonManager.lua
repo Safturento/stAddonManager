@@ -2,8 +2,12 @@ local _, st = ...
 
 local stAM = CreateFrame("Frame", "stAddonManager", UIParent)
 
+st[1] = stAM -- for local usage
+
 stAM.pageNum = 0
-stAM.perPage = 10
+stAM.perPage = 15
+stAM.buttonHeight = 18
+stAM.buttonWidth = 22
 
 local function strtrim(string)
 	return string:gsub("^%s*(.-)%s*$", "%1")
@@ -11,7 +15,7 @@ end
 
 function stAM.Initialize(self, event, ...)
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-
+	if not stAM_Profiles then stAM_Profiles = {} end
 	if GameMenuButtonAddons then return end
 
 	local menu = _G.GameMenuFrame
@@ -125,13 +129,14 @@ function stAM.UpdateSearchQuery(self, search, userInput)
 			else
 				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
 			end
-			button:SetScript("OnClick", function()
+			button:SetScript("OnClick", function(self)
 				if enabled then
 					DisableAddOn(name)
+					self.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
 				else
 					EnableAddOn(name)
+					self.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
 				end
-				self:UpdateAddonList()
 			end)
 		else
 			button:Hide()
@@ -144,7 +149,7 @@ function stAM.LoadWindow(self)
 	if self.loaded then ToggleFrame(self) return end
 
 	self:SetSize(225, 10 + self.perPage * 25 + 40)
-	self:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+	self:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
 	self:SetTemplate("Transparent")
 	self:SetClampedToScreen(true)
 	self:SetMovable(true)
@@ -160,8 +165,7 @@ function stAM.LoadWindow(self)
 	title.text:SetPoint("CENTER")
 	title.text:SetPixelFont()
 	title.text:SetText("stAddonManager")
-	self.title = title
-	
+
 	local close = CreateFrame("Button", nil, title)
 	close:SetPoint("RIGHT", -3, 0)
 	close:SetSize(18,18)
@@ -173,6 +177,7 @@ function stAM.LoadWindow(self)
 	close:SetScript("OnEnter", function(self) self.text:SetModifiedColor() end)
 	close:SetScript("OnLeave", function(self) self.text:SetOriginalColor() end)
 	title.close = close
+	self.title = title
 
 	local search = CreateFrame("EditBox", nil, self)
 	search:SetPoint('TOPLEFT', title, 'BOTTOMLEFT', 10, -5)
@@ -181,7 +186,7 @@ function stAM.LoadWindow(self)
 	search:SetPixelFont()
 	search:SetTemplate()
 	search:SetAutoFocus(false)
-	search:SetTextInsets(3, 0, 0, 0)
+	search:SetTextInsets(5, 0, 0, 0)
 	search:SetText("Search")
 	search:SetScript("OnEnterPressed", function(self)
 		if strlen(strtrim(self:GetText())) == 0 then
@@ -197,6 +202,7 @@ function stAM.LoadWindow(self)
 	end)
 	search:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
 	search:SetScript("OnTextChanged", function(self, userInput) stAM:UpdateSearchQuery(self, userInput) end)
+	self.search = search
 
 	local addons = CreateFrame("Frame", nil, self)
 	addons:SetHeight(self.perPage*23 + 15)
@@ -214,7 +220,9 @@ function stAM.LoadWindow(self)
 	profiles.text:SetPoint('CENTER')
 	profiles.text:SetText('Profiles')
 	profiles:SetPoint('TOPRIGHT', addons, 'BOTTOMRIGHT', 0, -10)
-	profiles:Hide()
+	profiles:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
+	profiles:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
+	profiles:SetScript('OnClick', function(self) stAM:ToggleProfiles() end)
 	self.profiles = profiles
 
 	local reload = CreateFrame("Button", nil, self)
@@ -246,14 +254,17 @@ function stAM.LoadWindow(self)
 		b.text = b:CreateFontString(nil, 'OVERLAY')
 		b.text:SetPixelFont()
 		
-		b:SetScript("OnMouseDown", function() end)
 		b:SetScript("OnEnter", function(self) self.text:SetModifiedColor() end)
 		b:SetScript("OnLeave", function(self) self.text:SetOriginalColor() end)
 
 		if i == 1 then
 			b:SetScript("OnMouseDown", function() 
 				self.pageNum = self.pageNum - 1
-				self:UpdateAddonList()
+				if self.profileMenu and self.profileMenu:IsShown() then
+					self:UpdateProfiles()
+				else
+					self:UpdateAddonList()
+				end
 			end)
 			b.text:SetText('<')
 			b:SetPoint("LEFT", paging, "LEFT", 0, 0)
@@ -261,7 +272,11 @@ function stAM.LoadWindow(self)
 		else
 			b:SetScript("OnMouseDown", function() 
 				self.pageNum = self.pageNum + 1
-				self:UpdateAddonList()
+				if self.profileMenu and self.profileMenu:IsShown() then
+					self:UpdateProfiles()
+				else
+					self:UpdateAddonList()
+				end
 			end)
 			b.text:SetText('>')
 			b:SetPoint("RIGHT", paging, "RIGHT", 0, 0)
@@ -275,7 +290,7 @@ function stAM.LoadWindow(self)
 	for i=1, self.perPage do
 		local button = CreateFrame("Button", self:GetName().."Page"..i, addons)
 		button:SetTemplate()
-		button:SetSize(22, 18)
+		button:SetSize(stAM.buttonWidth, stAM.buttonHeight)
 		button:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
 		button:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
 		if i == 1 then
