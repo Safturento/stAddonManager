@@ -98,9 +98,10 @@ function stAM.InitProfiles(self)
 		--Modify static popup information to specific button
 		dialog.text = "Are you sure you want to delete"..self:GetParent():GetParent().text:GetText()
 		dialog.OnAccept = function(self, data, data2)
-			tremove(stAM_Profiles, profileName)
+			stAM_Profiles[profileName] = nil
+			stAM:UpdateProfiles()
 		end
-		StaticPopup_Show(dialog)
+		StaticPopup_Show('STADDONMANAGER_DELETECONFIRMATION')
 	end)
 	
 	--[[ GENERAL PULLOUT BUTTON SKINNING ]]
@@ -254,6 +255,11 @@ function stAM.UpdateProfiles(self)
 		else
 			buttons[i]:Hide()
 		end
+	end
+
+	-- Make sure this is hidden so that it's not accidentally shown on the wrong profile
+	if self.profileMenu.pullout:IsShown() then
+		self.profileMenu.pullout:Hide()
 	end
 end
 
