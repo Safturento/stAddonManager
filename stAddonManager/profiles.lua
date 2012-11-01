@@ -1,10 +1,26 @@
 local addon, st = ...
+local stAM = st[1] --for local usage
 
-local stAM = st[1]
+--[[ "DELETE PROFILE" DIALOG ]]
+StaticPopupDialogs['STADDONMANAGER_OVERWRITEPROFILE'] = {
+	text = "There is already a profile named ??????, DO you want to overwrite it?",
+	button1 = 'Overwrite',
+	button2 = 'Cancel',
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	OnAccept = function(self) end,
+	preferredIndex = 3,
+}
 
-function stAM.NewAddonProfile(self, popup, data, data2)
+function stAM.NewAddonProfile(self, popup, overwrite)
 	local name = popup.editBox:GetText()
-	if stAM_Profiles[name] then print('There is already a profile named \'' .. name .. '\'.') return end
+	if stAM_Profiles[name] and (not overwrite) then 
+		local dialog = StaticPopupDialogs['STADDONMANAGER_OVERWRITEPROFILE']
+		dialog.text = 'There is already a profile named ' .. name .. '. DO you want to overwrite it?'
+		dialog.OnAccept = function(self) stAM:NewAddonProfile(popup, true) end
+		StaticPopup_Show('STADDONMANAGER_OVERWRITEPROFILE')	
+	return end
 
 	local addonList = {}
 	for i = 1, GetNumAddOns() do
@@ -27,7 +43,7 @@ StaticPopupDialogs['STADDONMANAGER_NEWPROFILE'] = {
 	hasEditBox = true,
 	whileDead = true,
 	hideOnEscape = true,
-	OnAccept = function(self, data, data2) stAM:NewAddonProfile(self, data, data2) end,
+	OnAccept = function(self) stAM:NewAddonProfile(self) end,
 	preferredIndex = 3,
 }
 
@@ -35,91 +51,69 @@ function stAM.InitProfiles(self)
 	if self.profileMenu then return end
 
 	local profileMenu = CreateFrame('Frame', self:GetName()..'_ProfileMenu', self)
-	profileMenu:SetAllPoints(self.addons)
+	profileMenu:SetPoint('TOPLEFT', self.profiles, 'TOPRIGHT', 9, 0)
+	profileMenu:SetSize(225, 50)
 	profileMenu:SetTemplate()
-	profileMenu:SetFrameLevel(self.addons.buttons[1]:GetFrameLevel()+1)
+	profileMenu:SetFrameLevel(self:GetFrameLevel()-1)
 
 	----------------------------------------------------
 	-- PULLOUT MENU ------------------------------------
 	----------------------------------------------------
-	local pullout = CreateFrame('Frame', profileMenu:GetName()..'_', profileMenu)
+	local pullout = CreateFrame('Frame', profileMenu:GetName()..'_PulloutMenu', profileMenu)
 	pullout:SetWidth(stAM:GetWidth() - stAM.buttonWidth - 45)
 	pullout:SetHeight(stAM.buttonHeight)
 	pullout:Hide()
 	
-
 	--[[ "SET TO" BUTTON ]]
-	local setTo = CreateFrame('Button', profileMenu:GetName().."_SetToButton", pullout)
-	setTo:SetPoint('LEFT', pullout, 0, 0)
-	setTo:SetScript('OnClick', function(self, btn)
+	pullout.setTo = st.CreateButton(profileMenu:GetName()..'_SetToButton', pullout, (pullout:GetWidth()-10)/3, stAM.buttonHeight, {'LEFT', pullout, 0, 0}, 'Set To', function(self, btn)
 		local profileName = self:GetParent():GetParent().text:GetText()
 		--if shift key is pressed, don't disable current addons
 		if not IsShiftKeyDown() then
 			for i=1, GetNumAddOns() do DisableAddOn(i) end
 		end
-		for _,addon in pairs(stAM_Profiles[profileName]) do
-			EnableAddOn(addon)
+		for _,addonName in pairs(stAM_Profiles[profileName]) do
+			EnableAddOn(addonName)
 		end
-		stAM:ToggleProfiles()
+		stAM:UpdateAddonList()
+		pullout:Hide()
 	end)
-	pullout.setTo = setTo
 
 	--[[ "REMOVE FROM" BUTTON ]]
-	local removeFrom = CreateFrame('Button', profileMenu:GetName().."_RemoveButton", pullout)
-	removeFrom:SetPoint('LEFT', setTo, 'RIGHT', 5, 0)
-	removeFrom:SetScript('OnClick', function(self, btn)
+	pullout.removeFrom = st.CreateButton(profileMenu:GetName()..'_RemoveButton', pullout, (pullout:GetWidth()-10)/3, stAM.buttonHeight, {'LEFT', pullout.setTo, 'RIGHT', 5, 0}, 'Remove', function(self, btn)
 		local profileName = self:GetParent():GetParent().text:GetText()
-		for _,addon in pairs(stAM_Profiles[profileName]) do
-			DisableAddOn(addon)
+		for _,addonName in pairs(stAM_Profiles[profileName]) do
+			DisableAddOn(addonName)
 		end
-		stAM:ToggleProfiles()
+		EnableAddOn(addon) --Make sure this addon stays enabled
+		stAM:UpdateAddonList()
+		pullout:Hide()
 	end)
-
 
 	--[[ "DELETE PROFILE" DIALOG ]]
 	StaticPopupDialogs['STADDONMANAGER_DELETECONFIRMATION'] = {
-			text = "Are you sure you want to delete ???????",
-			button1 = 'Delete',
-			button2 = 'Cancel',
-			timeout = 0,
-			whileDead = true,
-			hideOnEscape = true,
-			OnAccept = function(self, data, data2) end,
-			preferredIndex = 3,
-		}
+		text = "Are you sure you want to delete ???????",
+		button1 = 'Delete',
+		button2 = 'Cancel',
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		OnAccept = function(self, data, data2) end,
+		preferredIndex = 3,
+	}
 
 	--[[ "DELETE PROFILE" BUTTON ]]
-	local deleteProfile = CreateFrame('Button', profileMenu:GetName().."_DeleteProfileButton", pullout)
-	deleteProfile:SetPoint('LEFT', removeFrom, 'RIGHT', 5, 0)
-	deleteProfile:SetScript('OnClick', function(self, btn)
+	pullout.deleteProfile = st.CreateButton(profileMenu:GetName().."_DeleteProfileButton", pullout, (pullout:GetWidth()-10)/3, stAM.buttonHeight, {'LEFT', pullout.removeFrom, 'RIGHT', 5, 0}, 'Delete', function(self, btn)
 		local profileName = self:GetParent():GetParent().text:GetText()
 		local dialog = StaticPopupDialogs['STADDONMANAGER_DELETECONFIRMATION']
-		
+
 		--Modify static popup information to specific button
-		dialog.text = "Are you sure you want to delete"..self:GetParent():GetParent().text:GetText()
+		dialog.text = "Are you sure you want to delete"..profileName
 		dialog.OnAccept = function(self, data, data2)
 			stAM_Profiles[profileName] = nil
 			stAM:UpdateProfiles()
 		end
 		StaticPopup_Show('STADDONMANAGER_DELETECONFIRMATION')
 	end)
-	
-	--[[ GENERAL PULLOUT BUTTON SKINNING ]]
-	for _,button in pairs({setTo, removeFrom, deleteProfile}) do
-		button:SetTemplate()
-		button:SetHeight(stAM.buttonHeight)
-		button:SetWidth((pullout:GetWidth()-10)/3)
-		button:SetScript('OnEnter', function(self) self:SetModifiedColor() end)
-		button:SetScript('OnLeave', function(self) self:SetOriginalColor() end)
-		button.text = button:CreateFontString(nil, 'OVERLAY')
-		button.text:SetPixelFont()
-		button.text:SetPoint('CENTER', 1, 1)
-	end
-
-	-- [[ PULLOUT BUTTON LABELS ]]
-	setTo.text:SetText('Set to')
-	removeFrom.text:SetText('Remove')
-	deleteProfile.text:SetText('Delete')
 
 	--[[ ANCHOR FUNCTION - Used to change which button the pullout is set to ]]
 	pullout.AnchorToButton = function(self, button)
@@ -135,11 +129,19 @@ function stAM.InitProfiles(self)
 	----------------------------------------------------
 	-- TOP MENU BUTTONS --------------------------------
 	----------------------------------------------------
-	for i,name in pairs({'EnableAll', 'DisableAll'}) do
-		local button = CreateFrame('Button', profileMenu:GetName()..'_'..name, profileMenu)
-		button:SetTemplate()
-		button:SetHeight(stAM.buttonHeight)
-		if i == 1 then
+	for b,name in pairs({'Enable All', 'Disable All'}) do
+		local button = st.CreateButton(profileMenu:GetName()..'_'..name, profileMenu, 1, stAM.buttonHeight, nil, name, function(self) 
+			for i=1, GetNumAddOns() do
+				if b == 1 then
+					EnableAddOn(i)
+				elseif not (GetAddOnInfo(i) == addon) then -- Disable all addons except this one
+					DisableAddOn(i)
+				end
+			end
+			stAM:UpdateAddonList()
+		end)
+
+		if b == 1 then
 			button:SetPoint('TOPLEFT', profileMenu, 'TOPLEFT', 10, -10)
 			button:SetPoint('TOPRIGHT', profileMenu, 'TOP', -3, -10)
 		else
@@ -147,112 +149,63 @@ function stAM.InitProfiles(self)
 			button:SetPoint('TOPLEFT', profileMenu, 'TOP', 2, -10)
 		end
 		
-		button.text = button:CreateFontString(nil, 'OVERLAY')
-		button.text:SetPixelFont()
-		button.text:SetPoint('CENTER', 1, 1)
-		button.text:SetText(i == 1 and 'Enable All' or 'Disable All')
-
-		button:SetScript('OnEnter', function(self) self:SetModifiedColor() end)
-		button:SetScript('OnLeave', function(self) self:SetOriginalColor() end)
-		button:SetScript('OnClick', function(self)
-			for i=1, GetNumAddOns() do
-				if i == 1 then
-					EnableAddOn(i)
-				elseif not (GetAddOnInfo(i) == addon) then -- Disable all addons except this one
-					DisableAddOn(i)
-				end
-			end
-
-		end)
-		
+		name = name:gsub(' ', '')
 		profileMenu[name] = button
 	end
 
-	local newButton = CreateFrame('Button', profileMenu:GetName()..'_NewProfileButton', profileMenu)
-	newButton:SetTemplate()
-	newButton:SetHeight(stAM.buttonHeight)
-	newButton:SetPoint('TOPLEFT', profileMenu.EnableAll, 'BOTTOMLEFT', 0, -5)
+	local newButton = st.CreateButton(profileMenu:GetName()..'_NewProfileButton', profileMenu, 1, stAM.buttonHeight, {'TOPLEFT', profileMenu.EnableAll, 'BOTTOMLEFT', 0, -5}, 'New Profile', function() StaticPopup_Show('STADDONMANAGER_NEWPROFILE') end)
 	newButton:SetPoint('TOPRIGHT', profileMenu.DisableAll, 'BOTTOMRIGHT', 0, -5)
-	newButton:SetScript('OnEnter', function(self) self:SetModifiedColor() end)
-	newButton:SetScript('OnLeave', function(self) self:SetOriginalColor() end)
-	newButton:SetScript('OnClick', function(self) StaticPopup_Show('STADDONMANAGER_NEWPROFILE') end)
-
-	newButton.text = newButton:CreateFontString(nil, 'OVERLAY')
-	newButton.text:SetPixelFont()
-	newButton.text:SetPoint('CENTER',1 , 1)
-	newButton.text:SetText('New Profile..')
 	profileMenu.newButton = newButton
 
-
-	----------------------------------------------------
-	-- PROFILE BUTTONS ---------------------------------
-	----------------------------------------------------
-	profileMenu.buttons = {}
-	for i=1, self.perPage-2 do
-		local button = CreateFrame("Button", self:GetName().."Page"..i, profileMenu)
-		button:SetTemplate()
-		button:SetSize(stAM.buttonWidth, stAM.buttonHeight)
-		button:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
-		button:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
-		button:SetScript("OnClick", function(self) 
-			if (pullout:GetParent() == self and pullout:IsShown()) then 
-				pullout:Hide() 
-			else 
-				pullout:AnchorToButton(self) 
-			end
-		end)
-		
-		button.text = button:CreateFontString(nil, 'OVERLAY')
-		button.text:SetPixelFont()
-		button.text:SetPoint("LEFT", button, "RIGHT", 10, 0)
-		button.text:SetPoint("TOP", button, "TOP")
-		button.text:SetPoint("BOTTOM", button, "BOTTOM")
-		button.text:SetPoint("RIGHT", profileMenu, "RIGHT", -10, 0)
-		button.text:SetJustifyH("LEFT")
-
-		if i == 1 then
-			pullout:AnchorToButton(button)
-			pullout:Hide()
-			button:SetPoint("TOPLEFT", profileMenu.newButton, "BOTTOMLEFT", 0, -5)
-		else
-			button:SetPoint("TOP", profileMenu.buttons[i-1], "BOTTOM", 0, -5)
-		end
-		button.arrow = button:CreateFontString(nil, 'OVERLAY')
-		button.arrow:SetPixelFont()
-		button.arrow:SetPoint("CENTER", 1, 1)
-		button.arrow:SetText('>')
-
-		profileMenu.buttons[i] = button
-	end
+	profileMenu.buttons = {} --Store only buttons in here
 
 	self.profileMenu = profileMenu
 end
 
 function stAM.UpdateProfiles(self)
 	local profiles = {}
+	local profileMenu = self.profileMenu
 	local buttons = self.profileMenu.buttons
+	local pullout = profileMenu.pullout
+
 	for name,_ in pairs(stAM_Profiles) do
 		tinsert(profiles, name)
 	end
 
-	if self.pageNum <= 0 then
-		self.prevPage:Hide()
-	else
-		self.prevPage:Show()
+	for i = 1, #profiles do
+		if not buttons[i] then
+			local name = format('%s_button%d', self.profileMenu:GetName(), i)
+			local button = st.CreateButton(name, profileMenu, stAM.buttonWidth, stAM.buttonHeight, nil, profiles[i], function(self) 
+				if (pullout:GetParent() == self and pullout:IsShown()) then 
+					pullout:Hide() 
+				else 
+					pullout:AnchorToButton(self) 
+				end
+			end)
+			button.text:ClearAllPoints()
+			button.text:SetPoint("LEFT", button, "RIGHT", 10, 0)
+			button.text:SetPoint("RIGHT", self.profileMenu, "RIGHT", -10, 0)
+			button.text:SetJustifyH("LEFT")
+
+			if i == 1 then
+				pullout:AnchorToButton(button)
+				pullout:Hide()
+				button:SetPoint("TOPLEFT", profileMenu.newButton, "BOTTOMLEFT", 0, -5)
+			else
+				button:SetPoint("TOP", profileMenu.buttons[i-1], "BOTTOM", 0, -5)
+			end
+			button.arrow = st.CreateFontString(button, nil, 'OVERLAY', '>', {'CENTER', 1, 1}, 'CENTER', st.FontStringTable)
+
+			profileMenu.buttons[i] = button
+		end
+
+		buttons[i]:Show()
+		buttons[i].text:SetText(profiles[i])
 	end
 
-	if (self.pageNum+1)*self.perPage >= #profiles then
-		self.nextPage:Hide()
-	else
-		self.nextPage:Show()
-	end
-
-	local pgOff = (self.pageNum*self.perPage)
-	for i = 1, self.perPage-2 do
-		if profiles[pgOff + i] then
-			buttons[i]:Show()
-			buttons[i].text:SetText(profiles[pgOff + i])
-		else
+	--Hide all buttons that arne't being used - These buttons only appear after profile deletion, and do not re-appear upon reloading the UI
+	if #profiles < #buttons then
+		for i=#profiles+1, #buttons do
 			buttons[i]:Hide()
 		end
 	end
@@ -261,6 +214,8 @@ function stAM.UpdateProfiles(self)
 	if self.profileMenu.pullout:IsShown() then
 		self.profileMenu.pullout:Hide()
 	end
+
+	profileMenu:SetHeight((#profiles+2)*(stAM.buttonHeight+5) + 15)
 end
 
 function stAM.ToggleProfiles(self)
@@ -269,10 +224,5 @@ function stAM.ToggleProfiles(self)
 	else
 		ToggleFrame(self.profileMenu)
 	end
-	self.pageNum = 0
-	if self.profileMenu:IsShown() then
-		self:UpdateProfiles()
-	else
-		self:UpdateAddonList()
-	end
+	self:UpdateProfiles()
 end

@@ -1,62 +1,161 @@
-local _, st = ...
+local addon, st = ...
+local stAM = st[1] --for local usage
 
-local stAM = CreateFrame("Frame", "stAddonManager", UIParent)
 
-st[1] = stAM -- for local usage
-
-stAM.pageNum = 0
-stAM.perPage = 15
-stAM.buttonHeight = 18
-stAM.buttonWidth = 22
 
 local function strtrim(string)
 	return string:gsub("^%s*(.-)%s*$", "%1")
 end
 
 function stAM.Initialize(self, event, ...)
+	--Only run this function once
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
-	if not stAM_Profiles then stAM_Profiles = {} end
-	if GameMenuButtonAddons then return end
+	if self.INITIALIZED then return end
 
+	--If saved variables don't exist, create them
+	if not stAM_Profiles then stAM_Profiles = {} end
+	if not stAM_Config then stAM_Config = {} end
+
+	-- Make sure all config variables are successfully created if missing
+	--This table (stAM.defaultConfig) is located at the top of config.lua
+	for conf, val in pairs(stAM.defaultConfig) do
+		if stAM_Config[conf] == nil then
+			stAM_Config[conf] = val
+		end
+	end
+
+	--localize the game menu buttons
 	local menu = _G.GameMenuFrame
 	local macros = _G.GameMenuButtonMacros
 	local ratings = _G.GameMenuButtonRatings
 	local logout = _G.GameMenuButtonLogout
-
+	
+	--create the new game menu button
 	local addons = CreateFrame("Button", "GameMenuButtonAddons", menu, "GameMenuButtonTemplate")
-	
-	if Tukui then addons:SkinButton(true) end
-	
-	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -1)
-	addons:SetSize(logout:GetWidth(), logout:GetHeight())
 	addons:SetText("AddOns")
 
+	-- If Tukui's skin button function is available, skin it
+	if addons.SkinButton then addons:SkinButton(true) end
+	
+	--Some re-anchoring to organize the buttons
+	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -1)
+	addons:SetSize(logout:GetWidth(), logout:GetHeight())
 	logout:ClearAllPoints()
 	local anchorTo = SkinOptionsButton or addons
 	logout:SetPoint("TOP", anchorTo, "BOTTOM", 0, -14)
 	menu:SetHeight(menu:GetHeight() + addons:GetHeight() + 15)
 
+	--Set it to load up the addon window on click
 	addons:SetScript("OnClick", function() self:LoadWindow() end)
+
+	self.INITIALIZED = true
 end
 
 function stAM.UpdateAddonList(self)
-	for i = 1, self.perPage do
-		local addonIndex = (self.pageNum*self.perPage) + i
-		local button = self.addons.buttons[i]
+	--Loop through however many buttons there should be
+	for i = 1, stAM_Config['numAddonsShown'] do
+		local addonIndex = stAM.scrollOffset + i --adjust the scroll offset to get the right addon
+		local button = self.addons.buttons[i] 	 --localize the button
 
-		if self.pageNum <= 0 then
-			self.prevPage:Hide()
-		else
-			self.prevPage:Show()
+		if not button then
+			local name = format('%sPage%d', self:GetName(), i)
+			local point = i == 1 and {"TOPLEFT", self.addons, "TOPLEFT", 10, -10} or {"TOP", self.addons.buttons[i-1], "BOTTOM", 0, -5}
+			local btn = st.CreateButton(name, self.addons, stAM.buttonWidth, stAM.buttonHeight, point, 'Addon'..i, function(self)
+				if not GetAddOnInfo(self.addonName) then return end
+				
+				local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(self.addonName)
+				
+				if enabled then
+					DisableAddOn(name)
+				else
+					EnableAddOn(name)
+				end
+				stAM:UpdateAddonList()
+			end)
+
+			btn.text:ClearAllPoints()
+			btn.text:SetPoint("LEFT", btn, "RIGHT", 10, 0)
+			btn.text:SetPoint("TOP", btn, "TOP")
+			btn.text:SetPoint("BOTTOM", btn, "BOTTOM")
+			btn.text:SetPoint("RIGHT", self.addons, "RIGHT", -10, 0)
+			btn.text:SetJustifyH("LEFT")
+
+			btn.enabled = btn:CreateTexture(nil, 'OVERLAY')
+			btn.enabled:SetInside(btn)
+			btn.enabled:SetTexture(1, 1, 1)
+
+			self.addons.buttons[i] = btn
+			button = self.addons.buttons[i]
 		end
 
-		if (self.pageNum+1)*self.perPage >= GetNumAddOns() then
-			self.nextPage:Hide()
-		else
-			self.nextPage:Show()
-		end
+		
 
+		--Check if an addon actually exists to place on this button (and hide the button if there isn't an addon to show)
 		if addonIndex <= GetNumAddOns() then
+			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
+			button.text:SetText(title)
+			button:Show()
+
+			if enabled then
+				button.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
+			else
+				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
+			end
+			button:SetScript("OnClick", function()
+				if enabled then
+					DisableAddOn(name)
+				else
+					EnableAddOn(name)
+				end
+				self:UpdateAddonList()
+			end)
+		else
+			button:Hide()
+		end
+	end
+
+	for i=stAM_Config['numAddonsShown']+1, #self.addons.buttons do
+		self.addons.buttons[i]:Hide()
+	end
+
+	self.addons:SetHeight(stAM_Config['numAddonsShown']*(stAM.buttonHeight+5) + 15)
+	self:SetHeight(self.title:GetHeight() + 5 + self.search:GetHeight() + 5  + self.addons:GetHeight() + 10 + self.profiles:GetHeight() + 10) --Really sketchy, but it's the cleanest way to do this
+end
+
+function stAM.UpdateSearchQuery(self, search, userInput)
+	local query = strlower(strtrim(search:GetText()))
+
+	--Revert to regular addon list if:
+	-- 1) Query text was not input by a user (e.g. text was changed by search:SetText())
+	-- 2) The query text contains nothing but spaces
+	if (not userInput) or (strlen(query) == 0) then
+		self:UpdateAddonList()
+		self.searchQuery = false; -- make sure scroll bar is using the correct update function
+		return;
+	end
+
+	self.searchQuery = true
+
+	search.addons = {}
+	--store all addons that match the query in here
+	for i = 1, GetNumAddOns() do
+		local name, title = GetAddOnInfo(i)
+		name = strlower(name)
+		title = strlower(title)
+
+		if strfind(name, query) or strfind(title, query) then
+			tinsert(search.addons, i)
+		end
+	end
+
+
+	--Loop through however many buttons there should be
+	for i = 1, stAM_Config['numAddonsShown'] do
+		local addonIndex = search.addons[stAM.scrollOffset + i] --adjust the scroll offset to get the right addon
+		local button = self.addons.buttons[i] 	 --localize the button
+
+		--Check if an addon actually exists to place on this button (and hide the button if there isn't an addon to show)
+		if addonIndex and addonIndex <= GetNumAddOns() then
 			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
 			button.text:SetText(title)
 			button:Show()
@@ -80,244 +179,139 @@ function stAM.UpdateAddonList(self)
 	end
 end
 
-function stAM.UpdateSearchQuery(self, search, userInput)
-	local query = strlower(strtrim(search:GetText()))
-
-	--Revert to regular addon list if:
-	-- 1) Query text was not input by a user (e.g. text was changed by search:SetText())
-	-- 2) The query text contains nothing but spaces
-	if (not userInput) or (strlen(query) == 0) then self:UpdateAddonList() return end
-
-	--store all addons that match the query in here
-	local addonList = {}
-	for i = 1, GetNumAddOns() do
-		local name, title = GetAddOnInfo(i)
-		name = strlower(name)
-		title = strlower(title)
-
-		if strfind(name, query) or strfind(title, query) then
-			tinsert(addonList, i)
-		end
-	end
-
-
-	--Load addons the same way as UpdateAddonList, but with the filtered table this time
-	for i = 1, self.perPage do
-		local pgOff = (self.pageNum*self.perPage)
-		local addonIndex = addonList[pgOff + i]
-		local button = self.addons.buttons[i]
-
-		if self.pageNum <= 0 then
-			self.prevPage:Hide()
-		else
-			self.prevPage:Show()
-		end
-
-		if (self.pageNum+1)*self.perPage >= #addonList then
-			self.nextPage:Hide()
-		else
-			self.nextPage:Show()
-		end
-
-		if addonIndex and addonIndex <= GetNumAddOns() then
-			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
-			button.text:SetText(title)
-			button:Show()
-
-			if enabled then
-				button.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
-			else
-				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
-			end
-			button:SetScript("OnClick", function(self)
-				if enabled then
-					DisableAddOn(name)
-					self.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
-				else
-					EnableAddOn(name)
-					self.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
-				end
-			end)
-		else
-			button:Hide()
-		end
-	end
-end
-
 function stAM.LoadWindow(self)
 	if GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
-	if self.loaded then ToggleFrame(self) return end
+	if self.LOADED then ToggleFrame(self) return end
 
-	self:SetSize(225, 10 + self.perPage * 25 + 40)
+	--Hide the extra panels when hiding the main one
+	self:SetScript('OnHide', function()
+		if stAM.profileMenu and stAM.profileMenu:IsShown() then
+			stAM.profileMenu:Hide()
+		end
+		if stAM.configMenu and stAM.configMenu:IsShown() then
+			stAM.configMenu:Hide()
+		end
+	end)
+
+	--General Skinning
+	self:SetSize(stAM_Config['frameWidth'], 10 + stAM_Config['numAddonsShown'] * 25 + 40)
 	self:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
 	self:SetTemplate("Transparent")
+	self:SetFrameStrata('HIGH')
+
+	--Some dragging stuff
 	self:SetClampedToScreen(true)
 	self:SetMovable(true)
 	self:EnableMouse(true)
 	self:SetScript("OnMouseDown", function(self) self:StartMoving() end)
 	self:SetScript("OnMouseUp", function(self) self:StopMovingOrSizing() end)
 
-	local title = CreateFrame("Frame", nil, self)
+	--Title frame
+	local title = CreateFrame("Frame", self:GetName()..'_TitleBar', self)
 	title:SetPoint('TOPLEFT')
 	title:SetPoint('TOPRIGHT')
 	title:SetHeight(20)
-	title.text = title:CreateFontString(nil, "OVERLAY")
-	title.text:SetPoint("CENTER")
-	title.text:SetPixelFont()
-	title.text:SetText("stAddonManager")
-
-	local close = CreateFrame("Button", nil, title)
-	close:SetPoint("RIGHT", -3, 0)
-	close:SetSize(18,18)
-	close.text = close:CreateFontString(nil, "OVERLAY")
-	close.text:SetPixelFont()
-	close.text:SetText('x')
-	close.text:SetPoint("CENTER", 0, 0)
-	close:SetScript("OnMouseDown", function() self:Hide() end)
-	close:SetScript("OnEnter", function(self) self.text:SetModifiedColor() end)
-	close:SetScript("OnLeave", function(self) self.text:SetOriginalColor() end)
-	title.close = close
+	title.text = st.CreateFontString(title, nil, "OVERLAY", 'stAddonManager', {'CENTER'}, 'CENTER', st.FontStringTable)
 	self.title = title
 
-	local search = CreateFrame("EditBox", nil, self)
-	search:SetPoint('TOPLEFT', title, 'BOTTOMLEFT', 10, -5)
-	search:SetPoint('TOPRIGHT', title, 'BOTTOMRIGHT', -10, -5)
-	search:SetHeight(20)
-	search:SetPixelFont()
-	search:SetTemplate()
-	search:SetAutoFocus(false)
-	search:SetTextInsets(5, 0, 0, 0)
+	--Close button
+	self.close = st.CreateButton(title:GetName()..'_CloseButton', title, 18, 18, {'TOPRIGHT', -2, -2}, 'x', function() stAM:Hide() end)
+
+	--Profiles button
+	self.profiles = st.CreateButton(self:GetName()..'ProfilesButton', self, 70, 20, {'TOPRIGHT', title, 'BOTTOMRIGHT', -10, -5}, 'Profiles', function() stAM:ToggleProfiles() end)
+
+	--Search Bar
+	local search = st.CreateEditBox(self:GetName()..'_SearchBar', self, 1, 20)
+	search:SetPoint('TOPLEFT', self.title, 'BOTTOMLEFT', 10, -5)
+	search:SetPoint('BOTTOMRIGHT', self.profiles, 'BOTTOMLEFT', -5, 0)
 	search:SetText("Search")
 	search:SetScript("OnEnterPressed", function(self)
 		if strlen(strtrim(self:GetText())) == 0 then
 			stAM:UpdateAddonList()
 			self:SetText("Search")
 		end
-		self:ClearFocus()
 	end)
-	search:SetScript('OnEscapePressed', function(self)
-		stAM:UpdateAddonList()
-		self:SetText("Search")
-		self:ClearFocus()
-	end)
-	search:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
-	search:SetScript("OnTextChanged", function(self, userInput) stAM:UpdateSearchQuery(self, userInput) end)
+	search:HookScript('OnEscapePressed', function(self) stAM:UpdateAddonList(); self:SetText("Search") end)
+	search:HookScript("OnTextChanged", function(self, userInput) stAM.scrollOffset = 0; stAM:UpdateSearchQuery(self, userInput) end)
 	self.search = search
+	self.search.addons = {} -- used to hold addons that fit the search query
 
+	--Frame used to display addons list
 	local addons = CreateFrame("Frame", nil, self)
-	addons:SetHeight(self.perPage*23 + 15)
-	addons:SetPoint('TOPLEFT', search, 'BOTTOMLEFT', 0, -5)
-	addons:SetPoint('TOPRIGHT', search, 'BOTTOMRIGHT', 0, -5)
+	addons:SetHeight(stAM_Config['numAddonsShown']*(stAM.buttonHeight+5) + 15)
+	addons:SetPoint('TOPLEFT', self.search, 'BOTTOMLEFT', 0, -5)
+	addons:SetPoint('TOPRIGHT', self.profiles, 'BOTTOMRIGHT', 0, -5)
 	addons:SetTemplate()
 	addons.buttons = {}
+
+	--Allow the ability to scroll through addons
+	-- Much cleaner both code wise and visually than
+	-- an actual scroll bar
+	addons:EnableMouseWheel(true)
+	addons:SetScript('OnMouseWheel', function(self, delta)
+		local numAddons = stAM.searchQuery and #stAM.search.addons or GetNumAddOns() 
+
+		--If shift ke is pressed, scroll to the top or bottom
+		if IsShiftKeyDown() then
+			if delta == 1 then
+				stAM.scrollOffset = 0
+			elseif delta == -1 then
+				stAM.scrollOffset = numAddons - stAM_Config['numAddonsShown']
+			end
+		else
+			if delta == 1 and stAM.scrollOffset > 0 then
+				stAM.scrollOffset = stAM.scrollOffset - 1
+			elseif delta == -1 then
+				if stAM.scrollOffset < numAddons - stAM_Config['numAddonsShown'] then
+					stAM.scrollOffset = stAM.scrollOffset + 1
+				end
+			end
+		end
+		if stAM.searchQuery then
+			stAM:UpdateSearchQuery(stAM.search, true) -- emulate userInput
+		else
+			stAM:UpdateAddonList()
+		end
+	end)
 	self.addons = addons
 
-	local profiles = CreateFrame('Button', nil, self)
-	profiles:SetSize(70, 20)
-	profiles:SetTemplate()
-	profiles.text = profiles:CreateFontString(nil, 'OVERLAY')
-	profiles.text:SetPixelFont()
-	profiles.text:SetPoint('CENTER')
-	profiles.text:SetText('Profiles')
-	profiles:SetPoint('TOPRIGHT', addons, 'BOTTOMRIGHT', 0, -10)
-	profiles:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
-	profiles:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
-	profiles:SetScript('OnClick', function(self) stAM:ToggleProfiles() end)
-	self.profiles = profiles
+	-- for i=1, stAM_Config['numAddonsShown'] do
+	-- 	local name = format('%sPage%d', self:GetName(), i)
+	-- 	local point = i == 1 and {"TOPLEFT", addons, "TOPLEFT", 10, -10} or {"TOP", addons.buttons[i-1], "BOTTOM", 0, -5}
+	-- 	local button = st.CreateButton(name, addons, stAM.buttonWidth, stAM.buttonHeight, point, 'Addon'..i, function(self)
+	-- 		if not GetAddOnInfo(self.addonName) then return end
+			
+	-- 		local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(self.addonName)
+			
+	-- 		if enabled then
+	-- 			DisableAddOn(name)
+	-- 		else
+	-- 			EnableAddOn(name)
+	-- 		end
+	-- 		stAM:UpdateAddonList()
+	-- 	end)
 
-	local reload = CreateFrame("Button", nil, self)
-	reload:SetTemplate()
-	reload:SetSize(70, 20)
-	reload:SetPoint("TOPLEFT", addons, "BOTTOMLEFT", 0, -10)
-	reload.text = reload:CreateFontString(nil, 'OVERLAY')
-	reload.text:SetPixelFont()
-	reload.text:SetText("Reload")
-	reload.text:SetPoint("CENTER", 1, 0)
-	reload:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
-	reload:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
-	reload:SetScript("OnClick", function() 
-		if InCombatLockdown() then return end
-		ReloadUI()
-	end)
-	self.reload = reload
+	-- 	button.text:ClearAllPoints()
+	-- 	button.text:SetPoint("LEFT", button, "RIGHT", 10, 0)
+	-- 	button.text:SetPoint("TOP", button, "TOP")
+	-- 	button.text:SetPoint("BOTTOM", button, "BOTTOM")
+	-- 	button.text:SetPoint("RIGHT", addons, "RIGHT", -10, 0)
+	-- 	button.text:SetJustifyH("LEFT")
 
-	local paging = CreateFrame("Frame", nil, self)
-	paging:SetTemplate()
-	paging:SetSize(40, 20)
-	paging:SetPoint('TOP', addons, 'BOTTOM', 0, -10)
+	-- 	button.enabled = button:CreateTexture(nil, 'OVERLAY')
+	-- 	button.enabled:SetInside(button)
+	-- 	button.enabled:SetTexture(1, 1, 1)
 
-	local prevPage = CreateFrame("Frame", nil, paging)
-	local nextPage = CreateFrame("Frame", nil, paging)
+	-- 	addons.buttons[i] = button
+	-- end
 
-	for i,b in pairs({prevPage, nextPage}) do
-		b:SetSize(20, 20)
-		b.text = b:CreateFontString(nil, 'OVERLAY')
-		b.text:SetPixelFont()
+	self.reload = st.CreateButton(self:GetName()..'ReloadButton', self, 70, 20, {'TOPLEFT', addons, 'BOTTOMLEFT', 0, -10}, 'Reload', ReloadUI)
+	self.config = st.CreateButton(self:GetName()..'_ConfigButton', title, 70, 20, {'TOPRIGHT', addons, 'BOTTOMRIGHT', 0, -10}, 'Config', function() stAM:ToggleConfig() end)
 		
-		b:SetScript("OnEnter", function(self) self.text:SetModifiedColor() end)
-		b:SetScript("OnLeave", function(self) self.text:SetOriginalColor() end)
-
-		if i == 1 then
-			b:SetScript("OnMouseDown", function() 
-				self.pageNum = self.pageNum - 1
-				if self.profileMenu and self.profileMenu:IsShown() then
-					self:UpdateProfiles()
-				else
-					self:UpdateAddonList()
-				end
-			end)
-			b.text:SetText('<')
-			b:SetPoint("LEFT", paging, "LEFT", 0, 0)
-			b.text:SetPoint("LEFT", b, "LEFT", 8, 1)
-		else
-			b:SetScript("OnMouseDown", function() 
-				self.pageNum = self.pageNum + 1
-				if self.profileMenu and self.profileMenu:IsShown() then
-					self:UpdateProfiles()
-				else
-					self:UpdateAddonList()
-				end
-			end)
-			b.text:SetText('>')
-			b:SetPoint("RIGHT", paging, "RIGHT", 0, 0)
-			b.text:SetPoint("RIGHT", b, "RIGHT", -5, 1)
-		end
-	end
-	
-	self.prevPage = prevPage
-	self.nextPage = nextPage
-
-	for i=1, self.perPage do
-		local button = CreateFrame("Button", self:GetName().."Page"..i, addons)
-		button:SetTemplate()
-		button:SetSize(stAM.buttonWidth, stAM.buttonHeight)
-		button:SetScript("OnEnter", function(self) self:SetModifiedColor() end)
-		button:SetScript("OnLeave", function(self) self:SetOriginalColor() end)
-		if i == 1 then
-			button:SetPoint("TOPLEFT", addons, "TOPLEFT", 10, -10)
-		else
-			button:SetPoint("TOP", addons.buttons[i-1], "BOTTOM", 0, -5)
-		end
-		button.text = button:CreateFontString(nil, 'OVERLAY')
-		button.text:SetPixelFont()
-		button.text:SetPoint("LEFT", button, "RIGHT", 10, 0)
-		button.text:SetPoint("TOP", button, "TOP")
-		button.text:SetPoint("BOTTOM", button, "BOTTOM")
-		button.text:SetPoint("RIGHT", addons, "RIGHT", -10, 0)
-		button.text:SetJustifyH("LEFT")
-		button.enabled = button:CreateTexture(nil, 'OVERLAY')
-		button.enabled:SetInside(button)
-		button.enabled:SetTexture(1, 1, 1)
-
-		addons.buttons[i] = button
-	end
-
-	self:UpdateAddonList()
-
-	self:SetHeight(title:GetHeight() + 5 + search:GetHeight() + 5  + addons:GetHeight() + 10 + profiles:GetHeight() + 10)
+	self:UpdateConfig()
 
 	tinsert(UISpecialFrames, self:GetName())
-	self.loaded = true
+	self.LOADED = true
 end
 
 stAM:RegisterEvent("PLAYER_ENTERING_WORLD")
