@@ -171,7 +171,7 @@ function stAM.UpdateSearchQuery(self, search, userInput)
 				else
 					EnableAddOn(name)
 				end
-				self:UpdateAddonList()
+				self:UpdateSearchQuery(search, userInput)
 			end)
 		else
 			button:Hide()
@@ -274,36 +274,6 @@ function stAM.LoadWindow(self)
 		end
 	end)
 	self.addons = addons
-
-	-- for i=1, stAM_Config['numAddonsShown'] do
-	-- 	local name = format('%sPage%d', self:GetName(), i)
-	-- 	local point = i == 1 and {"TOPLEFT", addons, "TOPLEFT", 10, -10} or {"TOP", addons.buttons[i-1], "BOTTOM", 0, -5}
-	-- 	local button = st.CreateButton(name, addons, stAM.buttonWidth, stAM.buttonHeight, point, 'Addon'..i, function(self)
-	-- 		if not GetAddOnInfo(self.addonName) then return end
-			
-	-- 		local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(self.addonName)
-			
-	-- 		if enabled then
-	-- 			DisableAddOn(name)
-	-- 		else
-	-- 			EnableAddOn(name)
-	-- 		end
-	-- 		stAM:UpdateAddonList()
-	-- 	end)
-
-	-- 	button.text:ClearAllPoints()
-	-- 	button.text:SetPoint("LEFT", button, "RIGHT", 10, 0)
-	-- 	button.text:SetPoint("TOP", button, "TOP")
-	-- 	button.text:SetPoint("BOTTOM", button, "BOTTOM")
-	-- 	button.text:SetPoint("RIGHT", addons, "RIGHT", -10, 0)
-	-- 	button.text:SetJustifyH("LEFT")
-
-	-- 	button.enabled = button:CreateTexture(nil, 'OVERLAY')
-	-- 	button.enabled:SetInside(button)
-	-- 	button.enabled:SetTexture(1, 1, 1)
-
-	-- 	addons.buttons[i] = button
-	-- end
 
 	self.reload = st.CreateButton(self:GetName()..'ReloadButton', self, 70, 20, {'TOPLEFT', addons, 'BOTTOMLEFT', 0, -10}, 'Reload', ReloadUI)
 	self.config = st.CreateButton(self:GetName()..'_ConfigButton', title, 70, 20, {'TOPRIGHT', addons, 'BOTTOMRIGHT', 0, -10}, 'Config', function() stAM:ToggleConfig() end)
