@@ -171,6 +171,7 @@ function stAM.UpdateProfiles(self)
 	for name,_ in pairs(stAM_Profiles) do
 		tinsert(profiles, name)
 	end
+	sort(profiles)
 
 	for i = 1, #profiles do
 		if not buttons[i] then

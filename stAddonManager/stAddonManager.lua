@@ -248,9 +248,9 @@ function stAM.LoadWindow(self)
 		--If shift ke is pressed, scroll to the top or bottom
 		if IsShiftKeyDown() then
 			if delta == 1 then
-				stAM.scrollOffset = 0
+				stAM.scrollOffset = max(0, stAM.scrollOffset - stAM_Config['numAddonsShown'])
 			elseif delta == -1 then
-				stAM.scrollOffset = numAddons - stAM_Config['numAddonsShown']
+				stAM.scrollOffset = min(GetNumAddOns()-stAM_Config['numAddonsShown'], stAM.scrollOffset + stAM_Config['numAddonsShown'])
 			end
 		else
 			if delta == 1 and stAM.scrollOffset > 0 then
