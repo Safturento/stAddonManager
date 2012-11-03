@@ -3,7 +3,7 @@ local stAM = st[1] --for local usage
 
 --[[ "DELETE PROFILE" DIALOG ]]
 StaticPopupDialogs['STADDONMANAGER_OVERWRITEPROFILE'] = {
-	text = "There is already a profile named ??????, DO you want to overwrite it?",
+	text = "There is already a profile named ??????, Do you want to overwrite it?",
 	button1 = 'Overwrite',
 	button2 = 'Cancel',
 	timeout = 0,
@@ -107,7 +107,7 @@ function stAM.InitProfiles(self)
 		local dialog = StaticPopupDialogs['STADDONMANAGER_DELETECONFIRMATION']
 
 		--Modify static popup information to specific button
-		dialog.text = "Are you sure you want to delete"..profileName
+		dialog.text = "Are you sure you want to delete "..profileName.."?"
 		dialog.OnAccept = function(self, data, data2)
 			stAM_Profiles[profileName] = nil
 			stAM:UpdateProfiles()

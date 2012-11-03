@@ -11,6 +11,8 @@ API.blankTex = format('Interface\\AddOns\\%s\\media\\blankTex.tga', addon)
 API.glowTex = format('Interface\\AddOns\\%s\\media\\glowTex.tga', addon)
 API.bordercolor = {0.2, 0.2, 0.2}
 API.backdropcolor = {0.05, 0.05, 0.05}
+API.hovercolorHex = '00aaff'
+API.hovercolor = {0/255, 170/255, 255/255}
 
 API.dummy = function() end
 
@@ -20,6 +22,12 @@ if Tukui then
 	API.barTex = C.media.normTex
 	API.backdropcolor = C.general.backdropcolor
 	API.bordercolor = C.general.bordercolor
+end
+
+if ElvUI then
+	local E, L, V, P, G, _ = unpack(ElvUI); --Inport: Engine, Locales, PrivateDB, ProfileDB, GlobalDB, Localize Underscore
+	API.backdropcolor = P.general.backdropcolor
+	API.bordercolor = P.general.bordercolor
 end
 
 local function RegisterEvents(self, events)
@@ -34,7 +42,7 @@ local function Kill(object)
 	if object.UnregisterAllEvents then
 		object:UnregisterAllEvents()
 	end
-	object.Show = noop
+	object.Show = API.dummy
 	object:Hide()
 end
 
@@ -56,31 +64,6 @@ function API.SetPixelFont(text)
 	text:SetShadowOffset(0,0)
 end
 
-local function SetModifiedColor(self)	
-	local color = RAID_CLASS_COLORS[select(2, UnitClass('player'))]
-	if self.SetTextColor then
-		self:SetTextColor(color.r, color.g, color.b)
-	else
-		self:SetBackdropBorderColor(color.r, color.g, color.b)
-	end
-end
-
-local function SetOriginalColor(self)
-	if self.SetTextColor then
-		self:SetTextColor(1,1,1)
-	else
-		self:SetBackdropBorderColor(unpack(API.bordercolor))
-	end
-end
-
-local function SetModifiedBorderColor(self)	
-	local color = RAID_CLASS_COLORS[select(2, UnitClass('player'))]
-	self:SetBackdropBorderColor(color.r, color.g, color.b)
-end
-
-local function SetOriginalBorderColor(self)
-	self:SetBackdropBorderColor(unpack(API.bordercolor))
-end
 
 local function CreateBackdrop(f, t, tex)
 	if f.backdrop then return end
@@ -227,8 +210,8 @@ function API.CreateButton(name, parent, width, height, point, text, onclick)
 	local button = CreateFrame('Button', name or nil, parent or UIParent)
 	button:SetTemplate()
 	button:SetSize(width or 50, height or 20) -- Just random numbers to have a basic form and 
-	button:SetScript('OnEnter', function(self) self:SetModifiedColor() end)
-	button:SetScript('OnLeave', function(self) self:SetOriginalColor() end)
+	button:SetScript('OnEnter', function(self) self:SetBackdropBorderColor(unpack(API.hovercolor)) end)
+	button:SetScript('OnLeave', function(self) self:SetBackdropBorderColor(unpack(API.bordercolor)) end)
 	
 	if onclick then
 		button:SetScript('OnClick', function(self, btn) onclick(self, btn) end)
@@ -243,10 +226,7 @@ function API.CreateButton(name, parent, width, height, point, text, onclick)
 end
 
 function API.CreateCheckBox(name, parent, width, height, point, onclick)
-	local color = RAID_CLASS_COLORS[select(2, UnitClass('player'))]	
-
-	local checkbox = CreateFrame('CheckButton', name or nil, parent or UIParent, 'UICheckButtonTemplate')
-	checkbox:StripTextures()
+	local checkbox = CreateFrame('CheckButton', name or nil, parent or UIParent)
 	checkbox:SetTemplate()
 	checkbox:SetSize(width or 10, height or 10)
 
@@ -255,7 +235,7 @@ function API.CreateCheckBox(name, parent, width, height, point, onclick)
 
 	--Time to sexify these textures
 	local checked = checkbox:CreateTexture(nil, 'OVERLAY')
-	checked:SetTexture(color.r, color.g, color.b)
+	checked:SetTexture(unpack(API.hovercolor))
 	checked:SetInside(checkbox)
 	checkbox:SetCheckedTexture(checked)
 
@@ -264,6 +244,8 @@ function API.CreateCheckBox(name, parent, width, height, point, onclick)
 	hover:SetInside(checkbox)
 	checkbox:SetHighlightTexture(hover)
 
+
+	checkbox.text = API.CreateFontString(checkbox, nil, 'OVERLAY', text or '', {'LEFT', 5,0}, 'CENTER', API.FontStringTable or nil)
 	return checkbox
 end
 
@@ -271,18 +253,19 @@ function API.CreateEditBox(name, parent, width, height, point)
 	local search = CreateFrame('EditBox', name or nil, parent or UIParent)
 	search:SetSize(width or 150, height or 20)
 	if point then search:SetPoint(unpack(point)) end
-	API.SetPixelFont(search)
 	search:SetTemplate()
 	search:SetAutoFocus(false)
 	search:SetTextInsets(5, 5, 0, 0)
 
+	API.SetPixelFont(search)
+	search:SetTextColor(1, 1, 1)
 	tinsert(API.FontStringTable, search)
 
 	--Just some basic scripts to make sure your cursor doesn't get stuck in the edit box
 	search:HookScript('OnEnterPressed', function(self) self:ClearFocus() end)
 	search:HookScript('OnEscapePressed', function(self) self:ClearFocus() end)
-	search:HookScript('OnEditFocusGained', function(self) self:SetModifiedBorderColor(); self:HighlightText() end)
-	search:HookScript('OnEditFocusLost', function(self) self:SetOriginalBorderColor(); self:HighlightText(0,0) end)
+	search:HookScript('OnEditFocusGained', function(self) self:SetBackdropBorderColor(unpack(API.hovercolor)); self:HighlightText() end)
+	search:HookScript('OnEditFocusLost', function(self) self:SetBackdropBorderColor(unpack(API.bordercolor)); self:HighlightText(0,0) end)
 
 	return search
 end
@@ -331,10 +314,6 @@ local function addapi(object)
 	if not object.SetInside then mt.SetInside = SetInside end
 	if not object.CreateBackdrop then mt.CreateBackdrop = CreateBackdrop end
 	if not object.CreateShadow then mt.CreateShadow = CreateShadow end
-	if not object.SetModifiedColor then mt.SetModifiedColor = SetModifiedColor end
-	if not object.SetOriginalColor then mt.SetOriginalColor = SetOriginalColor end
-	if not object.SetModifiedBorderColor then mt.SetModifiedBorderColor = SetModifiedBorderColor end
-	if not object.SetOriginalBorderColor then mt.SetOriginalBorderColor = SetOriginalBorderColor end
 	if not object.Kill then mt.Kill = Kill end
 	if not object.StripTextures then mt.StripTextures = StripTextures end
 

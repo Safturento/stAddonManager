@@ -34,9 +34,16 @@ function stAM.Initialize(self, event, ...)
 	local addons = CreateFrame("Button", "GameMenuButtonAddons", menu, "GameMenuButtonTemplate")
 	addons:SetText("AddOns")
 
+	
+
 	-- If Tukui's skin button function is available, skin it
 	if addons.SkinButton then addons:SkinButton(true) end
 	
+	if ElvUI then
+		local E, L, V, P, G, _ = unpack(ElvUI); --Inport: Engine, Locales, PrivateDB, ProfileDB, GlobalDB, Localize Underscore
+		local S = E:GetModule('Skins')
+		S:HandleButton(addons)
+	end
 	--Some re-anchoring to organize the buttons
 	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -1)
 	addons:SetSize(logout:GetWidth(), logout:GetHeight())
@@ -60,7 +67,7 @@ function stAM.UpdateAddonList(self)
 		if not button then
 			local name = format('%sPage%d', self:GetName(), i)
 			local point = i == 1 and {"TOPLEFT", self.addons, "TOPLEFT", 10, -10} or {"TOP", self.addons.buttons[i-1], "BOTTOM", 0, -5}
-			local btn = st.CreateButton(name, self.addons, stAM.buttonWidth, stAM.buttonHeight, point, 'Addon'..i, function(self)
+			local btn = st.CreateCheckBox(name, self.addons, stAM.buttonWidth, stAM.buttonHeight, point, function(self)
 				if not GetAddOnInfo(self.addonName) then return end
 				
 				local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(self.addonName)
@@ -80,10 +87,6 @@ function stAM.UpdateAddonList(self)
 			btn.text:SetPoint("RIGHT", self.addons, "RIGHT", -10, 0)
 			btn.text:SetJustifyH("LEFT")
 
-			btn.enabled = btn:CreateTexture(nil, 'OVERLAY')
-			btn.enabled:SetInside(btn)
-			btn.enabled:SetTexture(1, 1, 1)
-
 			self.addons.buttons[i] = btn
 			button = self.addons.buttons[i]
 		end
@@ -95,12 +98,7 @@ function stAM.UpdateAddonList(self)
 			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
 			button.text:SetText(title)
 			button:Show()
-
-			if enabled then
-				button.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
-			else
-				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
-			end
+			button:SetChecked(enabled)
 			button:SetScript("OnClick", function()
 				if enabled then
 					DisableAddOn(name)
@@ -160,11 +158,7 @@ function stAM.UpdateSearchQuery(self, search, userInput)
 			button.text:SetText(title)
 			button:Show()
 
-			if enabled then
-				button.enabled:SetVertexColor(0.3, 1, 0.3, 0.5)
-			else
-				button.enabled:SetVertexColor(1, 0.3, 0.3, 0.5)
-			end
+			button:SetChecked(enabled)
 			button:SetScript("OnClick", function()
 				if enabled then
 					DisableAddOn(name)
