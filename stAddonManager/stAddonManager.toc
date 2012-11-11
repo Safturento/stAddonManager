@@ -3,6 +3,7 @@
 ## Version: 1.2.3
 ## Title: |cff00aaffst|rAddonManager
 ## Notes: A simple and minimalistic addon to disable/enabled addons without logging out.
+## OptionalDependencies: Tukui, ElvUI, Aurora
 ## SavedVariables: stAM_Profiles, stAM_Config
 
 initialize.lua

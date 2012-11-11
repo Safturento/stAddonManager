@@ -34,16 +34,22 @@ function stAM.Initialize(self, event, ...)
 	local addons = CreateFrame("Button", "GameMenuButtonAddons", menu, "GameMenuButtonTemplate")
 	addons:SetText("AddOns")
 
-	
-
 	-- If Tukui's skin button function is available, skin it
-	if addons.SkinButton then addons:SkinButton(true) end
+	if Tukui then
+		addons:SkinButton(true)
+	end
 	
 	if ElvUI then
 		local E, L, V, P, G, _ = unpack(ElvUI); --Inport: Engine, Locales, PrivateDB, ProfileDB, GlobalDB, Localize Underscore
 		local S = E:GetModule('Skins')
 		S:HandleButton(addons)
 	end
+
+	if Aurora then
+		local F, C = unpack(Aurora)
+		F.Reskin(addons)
+	end
+
 	--Some re-anchoring to organize the buttons
 	addons:SetPoint("TOP", ratings:IsShown() and ratings or macros, "BOTTOM", 0, -1)
 	addons:SetSize(logout:GetWidth(), logout:GetHeight())
