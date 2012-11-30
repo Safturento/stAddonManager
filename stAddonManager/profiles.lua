@@ -13,12 +13,11 @@ StaticPopupDialogs['STADDONMANAGER_OVERWRITEPROFILE'] = {
 	preferredIndex = 3,
 }
 
-function stAM.NewAddonProfile(self, popup, overwrite)
-	local name = popup.editBox:GetText()
+function stAM:NewAddonProfile(name, overwrite)
 	if stAM_Profiles[name] and (not overwrite) then 
 		local dialog = StaticPopupDialogs['STADDONMANAGER_OVERWRITEPROFILE']
-		dialog.text = 'There is already a profile named ' .. name .. '. DO you want to overwrite it?'
-		dialog.OnAccept = function(self) stAM:NewAddonProfile(popup, true) end
+		dialog.text = 'There is already a profile named ' .. name .. '. Do you want to overwrite it?'
+		dialog.OnAccept = function(self) stAM:NewAddonProfile(name, true) end
 		StaticPopup_Show('STADDONMANAGER_OVERWRITEPROFILE')	
 	return end
 
@@ -43,16 +42,16 @@ StaticPopupDialogs['STADDONMANAGER_NEWPROFILE'] = {
 	hasEditBox = true,
 	whileDead = true,
 	hideOnEscape = true,
-	OnAccept = function(self) stAM:NewAddonProfile(self) end,
+	OnAccept = function(self) stAM:NewAddonProfile(self.editBox:GetText()) end,
 	preferredIndex = 3,
 }
 
-function stAM.InitProfiles(self)
+function stAM:InitProfiles()
 	if self.profileMenu then return end
 
 	local profileMenu = CreateFrame('Frame', self:GetName()..'_ProfileMenu', self)
 	profileMenu:SetPoint('TOPLEFT', self.profiles, 'TOPRIGHT', 9, 0)
-	profileMenu:SetSize(225, 50)
+	profileMenu:SetSize(250, 50)
 	profileMenu:SetTemplate()
 	profileMenu:SetFrameLevel(self:GetFrameLevel()-1)
 
@@ -60,12 +59,12 @@ function stAM.InitProfiles(self)
 	-- PULLOUT MENU ------------------------------------
 	----------------------------------------------------
 	local pullout = CreateFrame('Frame', profileMenu:GetName()..'_PulloutMenu', profileMenu)
-	pullout:SetWidth(stAM:GetWidth() - stAM.buttonWidth - 45)
+	pullout:SetWidth(profileMenu:GetWidth() - stAM.buttonWidth - 40)
 	pullout:SetHeight(stAM.buttonHeight)
 	pullout:Hide()
 	
 	--[[ "SET TO" BUTTON ]]
-	pullout.setTo = st.CreateButton(profileMenu:GetName()..'_SetToButton', pullout, (pullout:GetWidth()-10)/3, stAM.buttonHeight, {'LEFT', pullout, 0, 0}, 'Set To', function(self, btn)
+	pullout.setTo = st.CreateButton(profileMenu:GetName()..'_SetToButton', pullout, pullout:GetWidth()/4, stAM.buttonHeight, {'LEFT', pullout, 0, 0}, 'Set To', function(self, btn)
 		local profileName = self:GetParent():GetParent().text:GetText()
 		--if shift key is pressed, don't disable current addons
 		if not IsShiftKeyDown() then
@@ -79,7 +78,7 @@ function stAM.InitProfiles(self)
 	end)
 
 	--[[ "REMOVE FROM" BUTTON ]]
-	pullout.removeFrom = st.CreateButton(profileMenu:GetName()..'_RemoveButton', pullout, (pullout:GetWidth()-10)/3, stAM.buttonHeight, {'LEFT', pullout.setTo, 'RIGHT', 5, 0}, 'Remove', function(self, btn)
+	pullout.removeFrom = st.CreateButton(profileMenu:GetName()..'_RemoveButton', pullout, pullout:GetWidth()/4, stAM.buttonHeight, {'LEFT', pullout.setTo, 'RIGHT', 5, 0}, 'Remove', function(self, btn)
 		local profileName = self:GetParent():GetParent().text:GetText()
 		for _,addonName in pairs(stAM_Profiles[profileName]) do
 			DisableAddOn(addonName)
@@ -102,17 +101,21 @@ function stAM.InitProfiles(self)
 	}
 
 	--[[ "DELETE PROFILE" BUTTON ]]
-	pullout.deleteProfile = st.CreateButton(profileMenu:GetName().."_DeleteProfileButton", pullout, (pullout:GetWidth()-10)/3, stAM.buttonHeight, {'LEFT', pullout.removeFrom, 'RIGHT', 5, 0}, 'Delete', function(self, btn)
+	pullout.deleteProfile = st.CreateButton(profileMenu:GetName().."_DeleteProfileButton", pullout, pullout:GetWidth()/4, stAM.buttonHeight, {'LEFT', pullout.removeFrom, 'RIGHT', 5, 0}, 'Delete', function(self, btn)
 		local profileName = self:GetParent():GetParent().text:GetText()
 		local dialog = StaticPopupDialogs['STADDONMANAGER_DELETECONFIRMATION']
 
 		--Modify static popup information to specific button
-		dialog.text = "Are you sure you want to delete "..profileName.."?"
+		dialog.text = format("Are you sure you want to delete %s?", profileName)
 		dialog.OnAccept = function(self, data, data2)
 			stAM_Profiles[profileName] = nil
 			stAM:UpdateProfiles()
 		end
 		StaticPopup_Show('STADDONMANAGER_DELETECONFIRMATION')
+	end)
+
+	pullout.updateprofile = st.CreateButton(profileMenu:GetName().."_UpdateProfileButton", pullout, pullout:GetWidth()/4, stAM.buttonHeight, {'LEFT', pullout.deleteProfile, 'RIGHT', 5, 0}, 'Update', function(self, btn)
+		stAM:NewAddonProfile(self:GetParent():GetParent().text:GetText(), true)
 	end)
 
 	--[[ ANCHOR FUNCTION - Used to change which button the pullout is set to ]]
@@ -162,7 +165,7 @@ function stAM.InitProfiles(self)
 	self.profileMenu = profileMenu
 end
 
-function stAM.UpdateProfiles(self)
+function stAM:UpdateProfiles()
 	local profiles = {}
 	local profileMenu = self.profileMenu
 	local buttons = self.profileMenu.buttons
@@ -219,7 +222,7 @@ function stAM.UpdateProfiles(self)
 	profileMenu:SetHeight((#profiles+2)*(stAM.buttonHeight+5) + 15)
 end
 
-function stAM.ToggleProfiles(self)
+function stAM:ToggleProfiles()
 	if not self.profileMenu then
 		self:InitProfiles()
 	else

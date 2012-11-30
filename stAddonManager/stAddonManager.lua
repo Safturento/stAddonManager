@@ -96,15 +96,27 @@ function stAM.UpdateAddonList(self)
 			self.addons.buttons[i] = btn
 			button = self.addons.buttons[i]
 		end
-
-		
-
 		--Check if an addon actually exists to place on this button (and hide the button if there isn't an addon to show)
 		if addonIndex <= GetNumAddOns() then
 			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
+			local requireddeps, optionaldeps = GetAddOnDependencies(addonIndex), GetAddOnOptionalDependencies(addonIndex)
 			button.text:SetText(title)
 			button:Show()
 			button:SetChecked(enabled)
+			button:SetScript('OnEnter', function()
+				GameTooltip:SetOwner(button, 'ANCHOR_CURSOR')
+				GameTooltip:ClearLines()
+				GameTooltip:AddLine(title)
+				GameTooltip:AddLine(notes)
+				if requireddeps then
+					GameTooltip:AddDoubleLine('Required Dependencies', requireddeps)
+				end
+				if optionaldeps then
+					GameTooltip:AddDoubleLine('Optional Dependencies', optionaldeps)
+				end
+				GameTooltip:Show()
+			end)
+			button:HookScript('Onleave', function() GameTooltip:Hide() end)
 			button:SetScript("OnClick", function()
 				if enabled then
 					DisableAddOn(name)
