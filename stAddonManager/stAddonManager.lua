@@ -99,6 +99,7 @@ function stAM.UpdateAddonList(self)
 		--Check if an addon actually exists to place on this button (and hide the button if there isn't an addon to show)
 		if addonIndex <= GetNumAddOns() then
 			local name, title, notes, enabled, loadable, reason, security = GetAddOnInfo(addonIndex)
+			local authors, versions = GetAddOnMetadata(addonIndex, "Author"), GetAddOnMetadata(addonIndex, "Version")
 			local requireddeps, optionaldeps = GetAddOnDependencies(addonIndex), GetAddOnOptionalDependencies(addonIndex)
 			button.text:SetText(title)
 			button:Show()
@@ -107,12 +108,18 @@ function stAM.UpdateAddonList(self)
 				GameTooltip:SetOwner(button, 'ANCHOR_CURSOR')
 				GameTooltip:ClearLines()
 				GameTooltip:AddLine(title)
-				GameTooltip:AddLine(notes)
+				if versions then				
+					GameTooltip:AddLine("|cFFFFFFFFVersion:|r "..versions)
+				end
+				if authors then
+					GameTooltip:AddLine("|cFF3E8AC6Author(s):|r "..authors)
+				end
+				GameTooltip:AddLine("|cFFFFFFFF"..notes.."|r")
 				if requireddeps then
-					GameTooltip:AddDoubleLine('Required Dependencies', requireddeps)
+					GameTooltip:AddDoubleLine('|cFFAD2424Required Dependencies|r', requireddeps)
 				end
 				if optionaldeps then
-					GameTooltip:AddDoubleLine('Optional Dependencies', optionaldeps)
+					GameTooltip:AddDoubleLine('|cFF3AB73AOptional Dependencies|r', optionaldeps)
 				end
 				GameTooltip:Show()
 			end)
