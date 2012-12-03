@@ -114,7 +114,9 @@ function stAM.UpdateAddonList(self)
 				if authors then
 					GameTooltip:AddLine("|cFF3E8AC6Author(s):|r "..authors)
 				end
-				GameTooltip:AddLine("|cFFFFFFFF"..notes.."|r")
+				if notes then
+					GameTooltip:AddLine("|cFFFFFFFF"..notes.."|r")
+				end
 				if requireddeps then
 					GameTooltip:AddDoubleLine('|cFFAD2424Required Dependencies|r', requireddeps)
 				end
