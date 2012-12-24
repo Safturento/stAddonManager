@@ -35,7 +35,7 @@ function stAM.Initialize(self, event, ...)
 	addons:SetText("AddOns")
 
 	-- If Tukui's skin button function is available, skin it
-	if Tukui then
+	if Tukui or AsphyxiaUI or DuffedUI then
 		addons:SkinButton(true)
 	end
 	
