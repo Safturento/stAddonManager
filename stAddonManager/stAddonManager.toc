@@ -1,6 +1,6 @@
 ## Interface: 50100
 ## Author: Safturento
-## Version: 1.2.5
+## Version: 1.2.6
 ## Title: |cff00aaffst|rAddonManager
 ## Notes: A simple and minimalistic addon to disable/enabled addons without logging out.
 ## OptionalDependencies: Tukui, ElvUI, Aurora

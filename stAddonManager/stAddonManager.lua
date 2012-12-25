@@ -7,7 +7,7 @@ local function strtrim(string)
 	return string:gsub("^%s*(.-)%s*$", "%1")
 end
 
-function stAM.Initialize(self, event, ...)
+function stAM:Initialize(event, ...)
 	--Only run this function once
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 	if self.INITIALIZED then return end
@@ -24,6 +24,8 @@ function stAM.Initialize(self, event, ...)
 		end
 	end
 
+	st.SkinCustomUI()
+
 	--localize the game menu buttons
 	local menu = _G.GameMenuFrame
 	local macros = _G.GameMenuButtonMacros
@@ -35,7 +37,7 @@ function stAM.Initialize(self, event, ...)
 	addons:SetText("AddOns")
 
 	-- If Tukui's skin button function is available, skin it
-	if Tukui then
+	if addons.SkinButton then
 		addons:SkinButton(true)
 	end
 	
@@ -105,7 +107,7 @@ function stAM.UpdateAddonList(self)
 			button:Show()
 			button:SetChecked(enabled)
 			button:SetScript('OnEnter', function()
-				GameTooltip:SetOwner(button, 'ANCHOR_CURSOR')
+				GameTooltip:SetOwner(stAM, 'ANCHOR_BOTTOMLEFT', -5, stAM:GetHeight())
 				GameTooltip:ClearLines()
 				GameTooltip:AddLine(title)
 				if versions then				

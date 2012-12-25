@@ -16,18 +16,30 @@ API.hovercolor = {0/255, 170/255, 255/255}
 
 API.dummy = function() end
 
-if Tukui then
-	local C = Tukui[2]
-	API.font = { C.media.pixelfont, 12, 'MONOCHROMEOUTLINE' }
-	API.barTex = C.media.normTex
-	API.backdropcolor = C.general.backdropcolor
-	API.bordercolor = C.general.bordercolor
-end
+function API.SkinCustomUI()
+	local Tukui = AsphyxiaUI or DuffedUI or Tukui
+	
+	if SaftUI then
+		local M,F,L,D = unpack(SaftUI)
+		local LSM = LibStub('LibSharedMedia-3.0')
 
-if ElvUI then
-	local E, L, V, P, G, _ = unpack(ElvUI); --Inport: Engine, Locales, PrivateDB, ProfileDB, GlobalDB, Localize Underscore
-	API.backdropcolor = P.general.backdropcolor
-	API.bordercolor = P.general.bordercolor
+		API.normalfont = {F.UnpackFont(D.Saved.General.Fonts.general)}
+		API.pixelfont = {F.UnpackFont(D.Saved.General.Fonts.pixel)}
+
+		
+		API.barTex = LSM:Fetch('statusbar', D.Saved.General.barTexture)
+		API.backdropcolor, API.bordercolor = F.GetColors()
+	elseif ElvUI then
+		local E, L, V, P, G, _ = unpack(ElvUI); --Inport: Engine, Locales, PrivateDB, ProfileDB, GlobalDB, Localize Underscore
+		API.backdropcolor = E["media"].backdropcolor
+		API.bordercolor = E["media"].bordercolor
+	elseif Tukui then
+		local C = Tukui[2]
+		API.font = { C.media.pixelfont, 12, 'MONOCHROMEOUTLINE' }
+		API.barTex = C.media.normTex
+		API.backdropcolor = C.general.backdropcolor
+		API.bordercolor = C.general.bordercolor
+	end
 end
 
 local function RegisterEvents(self, events)
@@ -59,7 +71,7 @@ local function StripTextures(object, kill)
 	end		
 end
 
-function API.SetPixelFont(text)
+function API.SetFontTemplate(text)
 	text:SetFont(unpack(API.font))
 	text:SetShadowOffset(0,0)
 end
@@ -257,7 +269,7 @@ function API.CreateEditBox(name, parent, width, height, point)
 	search:SetAutoFocus(false)
 	search:SetTextInsets(5, 5, 0, 0)
 
-	API.SetPixelFont(search)
+	API.SetFontTemplate(search)
 	search:SetTextColor(1, 1, 1)
 	tinsert(API.FontStringTable, search)
 
@@ -272,7 +284,7 @@ end
 
 function API.CreateFontString(self, name, layer, text, point, justification, storageTable)
 	local fs = self:CreateFontString(name or nil, layer or 'OVERLAY')
-	API.SetPixelFont(fs)
+	API.SetFontTemplate(fs)
 
 	if point then fs:SetPoint(unpack(point)) end
 	if text then fs:SetText(text) end
